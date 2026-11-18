@@ -1,0 +1,86 @@
+# アイコンの表(画面の絵文字を、ここで決めたアイコンに置きかえる)
+# 1列目: 画面に出ている絵文字 / 2列目: アイコン / 3列目: メモ(自由)
+# 2列目に書けるもの:
+#   ・Google Material Symbols の名前                          例: videocam
+#   ・Google Material Symbols のページのリンク(そのまま貼る)  例: https://fonts.google.com/icons?selected=Material+Symbols+Outlined:videocam:FILL@0;wght@400;GRAD@0;opsz@24
+#        Rounded / Sharp のリンクならその形、FILL@1 なら塗りつぶしになる
+#   ・png / svg などの画像(このフォルダからの場所 or https のURL)  例: icons/camera.png
+#   ・空にする / emoji と書く → 絵文字のまま
+# 書きかえたら、ページを読み直す(Cmd+Shift+R)と変わります。
+emoji,icon,memo
+🎥,videocam,カメラ
+📷,photo_camera,写真・今の視点
+📝,text_fields,テキスト
+💥,flare,パーティクル
+✨,auto_awesome,エフェクト・キラキラ
+🎵,music_note,音楽・音
+🕺,accessibility_new,ポーズ
+🎬,movie,書き出し・プレビュー
+🎞,theaters,切り替えの演出・自動カット
+🖼,picture_in_picture,小窓
+⚙,settings,設定
+💾,save,保存
+📂,folder_open,開く
+🗑,delete,削除
+✕,close,閉じる・消す
+＋,add,追加
+✎,edit,名前を変える
+⭐,star,カスタム・保存
+★,star,お気に入り
+⬆,upload,読み込む
+⬇,download,書き出す(ファイル)
+▶,play_arrow,再生
+⏸,pause,停止
+⏮,skip_previous,先頭へ
+↶,undo,取り消し
+↷,redo,やり直し
+↺,restart_alt,戻す
+↻,refresh,作り直す
+✂,content_cut,分割
+⚠,warning,注意
+✅,check_circle,できた
+✓,check,チェック
+⚡,bolt,自動アニメーション
+🧱,view_in_ar,ブロック
+🧸,toys,人形
+🎭,theater_comedy,全体アニメ
+🌊,waves,ウェーブ
+🦘,sports_gymnastics,ジャンプ
+🎈,flight_takeoff,浮く
+🧍,person,プレイヤー
+🔗,link,くっつく
+🎯,ads_click,選ぶ・向ける
+✋,back_hand,はなす
+📍,location_on,プレイヤーへ移動
+🌐,public,公開・グローバル
+👁,visibility,見る
+👀,visibility,見る
+🔍,search,探す・寄る
+🔄,360,周りを回る
+↔,swap_horiz,横から・伸ばす
+⇄,swap_horiz,入れ替え
+🏃,directions_run,走る・追いかける
+🚶,directions_walk,歩く
+👋,waving_hand,手を振る
+🙌,celebration,バンザイ
+💃,nightlife,ダンス
+🙇,self_improvement,おじぎ
+👉,arrow_right_alt,指さす
+🪑,chair,座る
+😴,bedtime,寝る
+🙂,face,正面から
+🛗,elevator,上へ昇る
+⏳,hourglass_top,待つ
+📖,menu_book,説明
+🎲,casino,ランダム
+🪟,window,ガラス
+🎉,celebration,広がる
+🏹,call_made,飛ぶ物
+🌬,air,風切り音
+💨,air,シュッ
+🎻,graphic_eq,重低音
+📈,trending_up,盛り上がり
+👊,sports_mma,パンチ
+🫧,bubble_chart,ポン
+🔔,notifications,ピコン
+🔇,volume_off,消音

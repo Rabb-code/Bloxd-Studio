@@ -1,0 +1,1265 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<script>window.BLOXD_EDITOR_VERSION = "55";</script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bloxd Replay Editor</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700;900&family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=M+PLUS+Rounded+1c:wght@400;700;900&family=Noto+Serif+JP:wght@400;700;900&family=DotGothic16&family=Noto+Sans+JP:wght@400;500;700&family=JetBrains+Mono:wght@500&display=swap');
+
+  :root {
+    --bg: #0B0D12;
+    --surface: #151821;
+    --surface-2: #1D2129;
+    --ink: #ECEAE3;
+    --muted: #8B93A7;
+    --border: #262B36;
+
+    --gold: #6aa1ff;      --gold-ink: #2A1B04;
+    --emerald: #3ECF8E;   --emerald-ink: #04241A;
+    --amethyst: #8B7FE8;  --amethyst-ink: #17123A;
+    --danger: #E06060;
+
+    --font-ui: 'Zen Kaku Gothic New', -apple-system, BlinkMacSystemFont, 'Hiragino Sans', sans-serif;
+    --font-display: 'Bricolage Grotesque', var(--font-ui);
+    --radius: 10px;
+
+    --tl-header-w: 136px; /* timeline.js の TL_HEADER_W と揃える */
+    --tl-row-h: 34px;     /* timeline.js の TL_ROW_H と揃える */
+    --glass: rgba(11,13,18,0.78);
+  }
+  * { box-sizing: border-box; }
+  html { color-scheme: dark; }
+  html, body { margin:0; height:100%; overflow:hidden; }
+  body { background: var(--bg); color: var(--ink); font-family: var(--font-ui); -webkit-font-smoothing: antialiased; }
+
+  .btn { display:inline-flex; align-items:center; gap:8px; border:none; border-radius:8px; padding:11px 20px;
+         font-family: var(--font-ui); font-size:14.5px; font-weight:700; cursor:pointer;
+         transition: filter .15s ease, transform .1s ease; }
+  .btn:active { transform: translateY(1px); }
+  .btn:disabled { opacity:.4; cursor:not-allowed; }
+  .btn-primary { background: var(--gold); color: var(--gold-ink); }
+  .btn-primary:hover:not(:disabled) { filter: brightness(1.08); }
+  .btn-ghost { background: transparent; color: var(--ink); border:1px solid var(--border); }
+  .btn-ghost:hover:not(:disabled) { border-color: var(--muted); }
+  .btn-sm { padding:7px 13px; font-size:13px; border-radius:7px; }
+  kbd { font-family: var(--font-ui); font-size:11px; padding:1px 5px; border-radius:4px;
+        border:1px solid var(--border); background: var(--surface-2); color: var(--ink); }
+
+  /* ============================================================
+     アップロード画面
+     ============================================================ */
+  #uploadScreen { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; z-index:20;
+                  background: radial-gradient(ellipse at 30% 20%, #171b26 0%, var(--bg) 55%); }
+  #uploadScreen.hidden { display:none; }
+  #uploadHero { display:flex; align-items:center; gap:56px; max-width:880px; padding:0 32px; }
+  #uploadHero .copy { flex:1; min-width:0; }
+  .eyebrow-word { font-family: var(--font-display); font-weight:700; font-size:13px; letter-spacing:.08em;
+                  text-transform:uppercase; color: var(--emerald); margin:0 0 10px; }
+  #uploadHero h1 { font-family: var(--font-display); font-size:36px; font-weight:800; line-height:1.25; margin:0 0 14px; letter-spacing:-0.01em; }
+  #uploadHero .lead { color: var(--muted); font-size:15px; line-height:1.75; margin:0 0 26px; max-width:440px; }
+  #uploadCard { background: var(--surface); border:1px solid var(--border); border-radius: var(--radius); padding:22px; max-width:440px; }
+  #fileInput { color: var(--muted); font-size:13px; margin-bottom:14px; display:block; width:100%; }
+  #processBtn { width:100%; justify-content:center; }
+  #uploadStatus { margin-top:14px; font-size:13px; color: var(--muted); min-height:18px; white-space:pre-line; line-height:1.6; }
+  #uploadHero .hero-art { flex-shrink:0; width:200px; }
+  #uploadHero .hero-art svg { width:100%; height:auto; }
+
+  /* ============================================================
+     エディタ画面: 3Dビュー
+     ============================================================ */
+  #editor { position:fixed; inset:0; display:none; flex-direction:column; }
+  #editor.active { display:flex; }
+  /* 編集パネルを開いている間は、エディタ画面をパネルの幅だけ縮める
+     (右上のボタンや右下の小窓がパネルの下に隠れないように) */
+  #editor.panelOpen { right: min(340px, 88vw); }
+
+  #freecamArea { position:relative; flex:1; min-height:0; background:#08090c; overflow:hidden; }
+  #freecamCanvas { position:absolute; top:0; left:0; outline:none; }
+  #freecamCrosshair { position:absolute; top:50%; left:50%; width:6px; height:6px; margin:-3px 0 0 -3px;
+                       border-radius:50%; background:rgba(255,255,255,0.75); pointer-events:none; display:none; z-index:3; }
+
+  .glass { background: var(--glass); backdrop-filter: blur(4px); border:1px solid var(--border); border-radius:8px; }
+
+  /* 左上: 今のモード・移動速度・座標 */
+  #viewHud { position:absolute; top:12px; left:12px; padding:7px 11px; font-size:12.5px; color: var(--ink);
+             pointer-events:none; z-index:5; white-space:nowrap; }
+  #loadStatus { position:absolute; top:48px; left:12px; padding:6px 10px; font-size:12px; color: var(--muted);
+                pointer-events:none; z-index:5; white-space:pre-line; }
+  #loadStatus:empty { display:none; }
+
+  /* 右上の操作群(flexで並べるだけ。ボタンが増えても座標の調整は要らない) */
+  #topRightControls { position:absolute; top:12px; right:12px; z-index:6; display:flex; align-items:center; gap:8px; }
+  #fovBox { display:flex; align-items:center; gap:8px; padding:6px 12px; font-size:12px; color: var(--muted); }
+  #fovValue { min-width:30px; display:inline-block; text-align:right; color: var(--ink); }
+  #fovSlider { width:96px; accent-color: var(--gold); }
+
+  /* ============================================================
+     左: 素材一覧(asset-library.js が中身を作る)
+     ============================================================ */
+  #editorMain { flex:1; min-height:0; display:flex; }
+  #assetPanel { flex-shrink:0; display:flex; background: var(--surface); border-right:1px solid var(--border); }
+  #assetRail { width:62px; flex-shrink:0; display:flex; flex-direction:column; gap:2px; padding:8px 5px;
+               border-right:1px solid var(--border); overflow-y:auto; scrollbar-width:none; }
+  .assetRailBtn { display:flex; flex-direction:column; align-items:center; gap:2px; padding:8px 2px 6px;
+                  border:none; border-radius:8px; background:transparent; color: var(--muted); cursor:pointer;
+                  font-family: var(--font-ui); }
+  .assetRailBtn .ico { font-size:19px; line-height:1.1; }
+  .assetRailBtn .lbl { font-size:10px; line-height:1.25; text-align:center; }
+  .assetRailBtn:hover { background: var(--surface-2); color: var(--ink); }
+  .assetRailBtn.active { background: rgba(106,161,255,0.16); color: var(--gold); }
+  .assetRailBtn.soon { opacity:.55; }
+  #assetList { width:230px; flex-shrink:0; overflow-y:auto; padding:12px 12px 16px; display:flex; flex-direction:column; gap:10px; }
+  #assetList.collapsed { display:none; }
+  .assetListTitle { font-family: var(--font-display); font-size:14px; font-weight:700; }
+  .assetGrid { display:grid; grid-template-columns: 1fr 1fr; gap:8px; }
+  .assetCard { border:1px solid var(--border); border-radius:8px; background: var(--surface-2); padding:6px 6px 7px;
+               cursor:grab; user-select:none; transition: border-color .12s ease, transform .12s ease; }
+  .assetCard:hover { border-color: var(--gold); transform: translateY(-1px); }
+  .assetCard:active { cursor:grabbing; }
+  .assetThumb { height:46px; border-radius:6px; display:flex; align-items:center; justify-content:center;
+                font-size:22px; margin-bottom:5px; font-family: var(--font-display); color: var(--ink); }
+  .assetThumb.camera { background: linear-gradient(160deg, #3a2a0f, #1b1f27); }
+  .assetThumb.text { background: linear-gradient(160deg, #241f42, #1b1f27); }
+  .assetName { font-size:12px; font-weight:700; line-height:1.3; }
+  .assetDesc { font-size:10.5px; color: var(--muted); line-height:1.35; margin-top:1px; }
+  .assetHint { font-size:11px; color: var(--muted); line-height:1.6; }
+  .assetSoon { border:1px dashed var(--border); border-radius:8px; padding:14px 12px; font-size:12px; color: var(--muted); line-height:1.6; }
+  .assetSoon b { color: var(--ink); }
+  .assetSoon p { margin:6px 0 0; }
+  .mi { font-family:'Material Symbols Outlined'; font-weight:normal; font-style:normal; font-size:1.25em; line-height:1; letter-spacing:normal;
+        text-transform:none; display:inline-block; white-space:nowrap; direction:ltr; vertical-align:-0.22em; user-select:none;
+        font-feature-settings:'liga'; -webkit-font-smoothing:antialiased; font-variation-settings:'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+  .mi.mi-rounded { font-family:'Material Symbols Rounded'; }
+  .mi.mi-sharp { font-family:'Material Symbols Sharp'; }
+  .mi.mi-fill { font-variation-settings:'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+  .mi-img { width:1.25em; height:1.25em; vertical-align:-0.22em; object-fit:contain; display:inline-block; }
+  .assetThumb .mi, .assetThumb .mi-img { font-size:1.5em; }
+  .assetRailBtn .ico .mi, .assetRailBtn .ico .mi-img { font-size:1.3em; }
+  #assetList .assetSearch { width:100%; flex:none; height:auto; }
+  .assetTagRow { display:flex; flex-wrap:wrap; gap:4px; }
+  .assetTag { border:1px solid var(--border); background:transparent; color:var(--muted); border-radius:999px; padding:2px 9px; font-size:11px; cursor:pointer; font-family:inherit; }
+  .assetTag:hover { color:var(--ink); }
+  .assetTag.active { background:var(--surface-2); color:var(--ink); border-color:var(--gold); }
+  .assetTools { display:flex; flex-direction:column; gap:6px; }
+  .assetEmpty { display:none; font-size:12px; color:var(--muted); text-align:center; padding:12px 0; }
+  .assetTabs { display:flex; gap:2px; padding:3px; border-radius:8px; background: var(--bg); border:1px solid var(--border); }
+  .assetTab { flex:1; padding:5px 4px; border:none; border-radius:6px; background:transparent; color: var(--muted);
+              font-family: var(--font-ui); font-size:12px; cursor:pointer; white-space:nowrap; }
+  .assetTab:hover { color: var(--ink); }
+  .assetTab.active { background: var(--surface-2); color: var(--ink); font-weight:700; box-shadow:0 1px 3px rgba(0,0,0,0.3); }
+  .assetCard { position:relative; }
+  .assetCard.open { grid-column: 1 / -1; cursor:default; border-color: var(--gold); transform:none; }
+  .assetCard.custom .assetThumb { box-shadow: inset 0 0 0 1px rgba(106,161,255,0.35); }
+  .assetCardBtns { position:absolute; top:9px; right:9px; display:flex; gap:3px; opacity:0; transition: opacity .12s ease; }
+  .assetCard:hover .assetCardBtns, .assetCard.open .assetCardBtns { opacity:1; }
+  .assetCardBtn { width:22px; height:22px; border-radius:6px; border:1px solid var(--border); background: var(--glass);
+                  color: var(--ink); font-size:11.5px; line-height:1; cursor:pointer; padding:0; }
+  .assetCardBtn:hover, .assetCardBtn.active { background: var(--gold); color: var(--gold-ink); border-color: var(--gold); }
+  .assetSettings { margin-top:8px; padding-top:8px; border-top:1px solid var(--border); display:flex; flex-direction:column; gap:9px; }
+  .assetParam { display:flex; flex-direction:column; gap:4px; }
+  .assetParamHead { display:flex; justify-content:space-between; font-size:11.5px; }
+  .assetParamLabel { color: var(--muted); }
+  .assetParamValue { font-variant-numeric: tabular-nums; }
+  .assetParam input[type=range] { width:100%; accent-color: var(--gold); }
+  .assetSettingsActions { display:flex; flex-direction:column; gap:6px; margin-top:2px; }
+  .assetSettingsActions .btn { justify-content:center; }
+  .assetSaveRow { display:flex; gap:6px; }
+  .assetSaveRow .panelInput { font-size:12px; padding:5px 7px; }
+  .assetLinkBtn { background:none; border:none; color: var(--muted); font-size:11.5px; cursor:pointer; text-decoration:underline; padding:0; align-self:flex-start; }
+  .assetRename { font-size:12px; padding:2px 5px; width:100%; }
+  .assetIo { display:flex; gap:6px; }
+  .assetIo .btn { flex:1; justify-content:center; padding:6px 8px; }
+  .assetThumb.particle { background: linear-gradient(160deg, #0f3a3a, #1b1f27); background-size:cover; background-position:center;
+                         text-shadow:0 1px 4px rgba(0,0,0,0.8); }
+  .pfUploadBtn { justify-content:center; }
+  .pfImageGrid { display:grid; grid-template-columns: repeat(5, 1fr); gap:6px; }
+  .pfImageTile { aspect-ratio:1; border-radius:7px; border:1.5px solid var(--border); cursor:pointer; padding:0;
+                 background-color: var(--surface-2); background-size:cover; background-position:center;
+                 color: var(--ink); font-size:18px; }
+  .pfImageTile:hover { border-color: var(--muted); }
+  .pfImageTile.active { border-color: var(--gold); box-shadow:0 0 0 2px rgba(106,161,255,0.35); }
+  .pfImageTile.add { border-style:dashed; }
+  .assetThumb.script { background: linear-gradient(160deg, #123a2c, #1b1f27); }
+
+  /* スクリプトの右パネル */
+  .scriptDesc { color: var(--ink); }
+  .scriptParams { display:flex; flex-direction:column; gap:10px; }
+  .scriptCheck { display:flex; align-items:center; gap:8px; font-size:12.5px; cursor:pointer; }
+  .scriptCheck input { accent-color: var(--gold); width:15px; height:15px; }
+  .scriptProgress { height:4px; border-radius:2px; background: var(--surface-2); overflow:hidden; display:none; }
+  .scriptProgress.show { display:block; }
+  .scriptProgressBar { height:100%; width:0; background: var(--emerald); transition: width .1s linear; }
+  .scriptResult { display:flex; flex-direction:column; gap:6px; }
+  .scriptResult:empty { display:none; }
+  .scriptMsg { font-size:12.5px; line-height:1.55; padding:8px 10px; border-radius:7px; background: var(--surface-2); }
+  .scriptMsg.ok { color: var(--emerald); }
+  .scriptMsg.warn { color:#F0C070; border:1px dashed #6a5420; }
+  .scriptMsg.error { color:#F29A9A; border:1px solid #5a2a2a; }
+  .genActions { display:flex; gap:6px; flex-wrap:wrap; }
+  .genParams { padding:10px; border-radius:8px; background: rgba(95,207,168,0.05); border:1px solid rgba(95,207,168,0.18); }
+  .scriptLog { margin:0; max-height:180px; overflow:auto; font-size:11.5px; line-height:1.5; padding:8px 10px;
+               border-radius:7px; background: var(--bg); border:1px solid var(--border); color: var(--muted); white-space:pre-wrap; }
+
+  /* スクリプトのコードエディタ(全画面) */
+  #scriptEditor { position:fixed; inset:0; z-index:30; display:none; align-items:center; justify-content:center;
+                  background:rgba(5,6,9,0.66); backdrop-filter: blur(2px); }
+  #scriptEditor.open { display:flex; }
+  #scriptEditorBox { width:min(1280px, calc(100vw - 32px)); height:calc(100vh - 40px); background: var(--surface);
+                     border:1px solid var(--border); border-radius: var(--radius); display:flex; flex-direction:column;
+                     overflow:hidden; box-shadow:0 16px 48px rgba(0,0,0,0.5); }
+  #scriptEditorHead { display:flex; align-items:center; gap:8px; padding:10px 12px; border-bottom:1px solid var(--border); flex-wrap:wrap; }
+  #scriptEditorHead .seIcon { font-size:18px; }
+  #scriptEditorName { flex:0 1 260px; }
+  #scriptEditorBadge { font-size:11.5px; color: var(--gold); white-space:nowrap; }
+  #scriptEditorClose { background:none; border:none; color: var(--muted); font-size:18px; cursor:pointer; padding:4px 6px; }
+  #scriptEditorClose:hover { color: var(--ink); }
+  #scriptEditor #scriptEditorCopy { display:none; }
+  #scriptEditor.readonly #scriptEditorCopy { display:inline-flex; }
+  #scriptEditor.readonly #scriptEditorSave, #scriptEditor.readonly #scriptEditorRun { display:none; }
+  #scriptEditorMain { flex:1; min-height:0; display:flex; }
+  #scriptEditorCodeWrap { flex:1; min-width:0; display:flex; background:#0d1016; }
+  #scriptEditorGutter { margin:0; padding:12px 8px 12px 12px; min-width:44px; text-align:right; color:#4b5364; overflow:hidden;
+                        font:12.5px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; user-select:none; border-right:1px solid var(--border); }
+  #scriptEditorCode { flex:1; min-width:0; resize:none; border:none; outline:none; background:transparent; color:#E6E3DA;
+                      padding:12px 14px; font:12.5px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; tab-size:2; white-space:pre; }
+  #scriptEditor.readonly #scriptEditorCode { color:#C9C5BB; }
+  #scriptEditorDocs { width:400px; flex-shrink:0; overflow-y:auto; border-left:1px solid var(--border); padding:4px 16px 20px;
+                      font-size:12.5px; line-height:1.65; color: var(--ink); }
+  #scriptEditor.docsHidden #scriptEditorDocs { display:none; }
+  #scriptEditorDocs h3 { font-family: var(--font-display); font-size:14px; margin:14px 0 6px; }
+  #scriptEditorDocs h4 { font-size:12px; color: var(--gold); margin:14px 0 4px; }
+  #scriptEditorDocs p { margin:4px 0; }
+  #scriptEditorDocs .note { color: var(--muted); font-size:11.5px; }
+  #scriptEditorDocs table { border-collapse:collapse; width:100%; }
+  #scriptEditorDocs td { padding:4px 0; vertical-align:top; border-bottom:1px solid #1f2430; }
+  #scriptEditorDocs td:first-child { padding-right:10px; width:56%; }
+  #scriptEditorDocs code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:11.5px; color:#9FD8C0;
+                           word-break:break-word; }
+  #scriptEditorStatus { padding:7px 14px; font-size:12px; color: var(--muted); border-top:1px solid var(--border); min-height:32px; }
+  #scriptEditorStatus.ok { color: var(--emerald); }
+  #scriptEditorStatus.error { color:#F29A9A; }
+  @media (max-width: 1000px) { #scriptEditorDocs { width:300px; } }
+
+  /* 素材をドラッグしている間は、落とせる場所を縁取りで示す */
+  body.assetDragging #timelineScroll, body.assetDragging #freecamArea { outline:2px dashed rgba(106,161,255,0.6); outline-offset:-3px; }
+
+  /* 下: 今できる操作のヒント(状況に応じて変わる) */
+  #contextHint { position:absolute; bottom:14px; left:50%; transform:translateX(-50%); z-index:5;
+                 max-width:calc(100% - 520px); padding:5px 12px; font-size:12px; line-height:1.5;
+                 color: var(--ink); text-align:center; pointer-events:none;
+                 white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+  /* 右下の小窓(PinP)。実際の描画はWebGL側(freecam.js)が、この位置に合わせて
+     ビューポートを切っている。このdivは縁取りとクリック受け皿だけ。
+     位置・サイズは freecam.js の PINP_W/PINP_H/PINP_MARGIN と揃えてある。 */
+  #pinpInset { position:absolute; bottom:14px; right:14px; width:220px; height:140px; z-index:4;
+               border:2px solid var(--border); border-radius:6px; cursor:pointer;
+               box-shadow:0 6px 20px rgba(0,0,0,0.45); pointer-events:none; display:none; }
+  #pinpInset.show { display:block; pointer-events:auto; }
+  #pinpInset:hover { border-color: var(--gold); }
+  #pinpInset::after { content:'クリックで入れ替え'; position:absolute; left:6px; top:5px; font-size:10px;
+                      color: var(--ink); background: var(--glass); padding:1px 6px; border-radius:4px; opacity:0;
+                      transition: opacity .15s ease; }
+  #pinpInset:hover::after { opacity:1; }
+
+  /* プレビューに重ねる、テキストのドラッグ配置レイヤー(content-blocks.jsが位置を合わせる) */
+  #pinpOutline { position:absolute; display:none; z-index:6; pointer-events:none; border:2px solid var(--gold); border-radius:3px; box-shadow:0 0 0 1px #0008; }
+  .pinpCorner { position:absolute; width:10px; height:10px; background:var(--gold); border:1.5px solid #000a; border-radius:2px; }
+  .pinpCorner.tl { left:-6px; top:-6px; } .pinpCorner.tr { right:-6px; top:-6px; }
+  .pinpCorner.bl { left:-6px; bottom:-6px; } .pinpCorner.br { right:-6px; bottom:-6px; }
+  #textOverlayLayer { position:absolute; overflow:hidden; pointer-events:none; z-index:5; display:none; }
+  #textOverlayLayer.show { display:block; }
+  .textOverlayItem { position:absolute; transform:translate(-50%,-50%); white-space:pre-wrap; text-align:center;
+                     font-family: var(--font-display); line-height:1.2; cursor:move; pointer-events:auto;
+                     text-shadow:0 2px 6px rgba(0,0,0,0.6); user-select:none; padding:2px 4px; border-radius:4px; }
+  .textOverlayItem:hover { outline:1px dashed rgba(255,255,255,0.5); }
+  .textOverlayItem.selected { outline:1.5px dashed var(--amethyst); }
+
+  /* カメラ視点モード: 書き出す枠+三分割線 */
+  #pilotFrame { position:absolute; pointer-events:none; display:none; z-index:4;
+                border:2px solid var(--gold); box-shadow:0 0 0 9999px rgba(0,0,0,0.28);
+                background-image:
+                  linear-gradient(to right, transparent calc(33.33% - 0.5px), rgba(255,255,255,0.22) calc(33.33% - 0.5px), rgba(255,255,255,0.22) calc(33.33% + 0.5px), transparent calc(33.33% + 0.5px), transparent calc(66.66% - 0.5px), rgba(255,255,255,0.22) calc(66.66% - 0.5px), rgba(255,255,255,0.22) calc(66.66% + 0.5px), transparent calc(66.66% + 0.5px)),
+                  linear-gradient(to bottom, transparent calc(33.33% - 0.5px), rgba(255,255,255,0.22) calc(33.33% - 0.5px), rgba(255,255,255,0.22) calc(33.33% + 0.5px), transparent calc(33.33% + 0.5px), transparent calc(66.66% - 0.5px), rgba(255,255,255,0.22) calc(66.66% - 0.5px), rgba(255,255,255,0.22) calc(66.66% + 0.5px), transparent calc(66.66% + 0.5px)); }
+  #pilotFrame.show { display:block; }
+  /* 上部中央は通知(トースト)が出る場所なので、ラベルは枠の左下に置く */
+  #pilotLabel { position:absolute; bottom:10px; left:10px; padding:4px 12px;
+                border-radius:999px; background: var(--gold); color: var(--gold-ink); font-size:12px; font-weight:700;
+                white-space:nowrap; }
+
+  /* 画面上部の通知 */
+  #toast { position:absolute; top:58px; left:50%; transform:translate(-50%, -8px); z-index:9; padding:8px 16px;
+           border-radius:999px; background: var(--surface-2); border:1px solid var(--border); font-size:13px;
+           color: var(--ink); opacity:0; pointer-events:none; transition: opacity .18s ease, transform .18s ease;
+           box-shadow:0 8px 24px rgba(0,0,0,0.4); white-space:nowrap; }
+  #toast.show { opacity:1; transform:translate(-50%, 0); }
+
+  /* ============================================================
+     タイムライン
+     ============================================================ */
+  #timelinePanel { position:relative; flex-shrink:0; height:250px; background: var(--surface);
+                   border-top:1px solid var(--border); display:flex; flex-direction:column; user-select:none; }
+  #timelineResizer { position:absolute; top:-4px; left:0; right:0; height:8px; cursor:ns-resize; z-index:8; }
+  #timelineResizer:hover { background: rgba(106,161,255,0.35); }
+
+  #timelineToolbar { display:flex; align-items:center; gap:6px; padding:7px 10px; border-bottom:1px solid var(--border); overflow-x:auto;
+                     flex-shrink:0; }
+  .tbBtn { display:inline-flex; align-items:center; justify-content:center; gap:5px; min-width:30px; height:30px;
+           padding:0 9px; border-radius:7px; border:1px solid var(--border); background: var(--surface-2);
+           color: var(--ink); font-family: var(--font-ui); font-size:12.5px; cursor:pointer; white-space:nowrap; }
+  .tbBtn:hover:not(:disabled) { border-color: var(--muted); }
+  .tbBtn:disabled { opacity:.35; cursor:not-allowed; }
+  .tbBtn.primary { background: var(--gold); color: var(--gold-ink); border-color: var(--gold); font-weight:700; min-width:84px; }
+  .tbSep { width:1px; height:20px; background: var(--border); margin:0 4px; }
+  .tbSpacer { flex:1; }
+  #timecode { font-family: var(--font-display); font-variant-numeric: tabular-nums; font-size:13px; color: var(--ink);
+              white-space:nowrap; min-width:96px; text-align:center; }
+  #entitySelect { background: var(--surface-2); color: var(--ink); border:1px solid var(--border); border-radius:7px;
+                  padding:5px 8px; font-size:12px; max-width:170px; height:30px; }
+  #frameInfo { display:none; } /* 開発用の情報(tick・pose など)。使う人には出さない */
+
+  #timelineScroll { position:relative; flex:1; min-height:0; overflow:auto; }
+  #timelineContent { position:relative; min-height:100%; }
+
+  .tlRow { display:flex; height: var(--tl-row-h); border-bottom:1px solid var(--border); position:relative; }
+  .tlHeader { position:sticky; left:0; z-index:6; width: var(--tl-header-w); flex-shrink:0; display:flex;
+              align-items:center; gap:6px; padding:0 8px 0 10px; background: var(--surface);
+              border-right:1px solid var(--border); font-size:12px; }
+  .tlHeader > span { white-space:nowrap; }
+  .tlHeaderSub { font-size:10px; color: var(--muted); }
+  .tlLane { position:relative; flex-shrink:0; height:100%; }
+
+  /* ルーラー(上に張り付く) */
+  #timelineRulerRow { position:sticky; top:0; z-index:7; height:24px; background: var(--surface); }
+  #timelineRulerRow .tlHeader { z-index:8; color: var(--muted); font-size:10.5px; }
+  #timelineRulerLane { cursor:text; }
+  .tlRulerMark { position:absolute; top:0; bottom:0; border-left:1px solid #3a4150; padding-left:4px;
+                 font-size:10.5px; color: var(--muted); line-height:22px; white-space:nowrap; pointer-events:none; }
+  .tlRulerMinor { position:absolute; bottom:0; height:6px; border-left:1px solid #2d333f; pointer-events:none; }
+
+  #timelineTextRow .tlLane { height:100%; }
+  .tlEmpty { position:absolute; left:10px; top:50%; transform:translateY(-50%); font-size:11.5px; color: var(--muted);
+             white-space:nowrap; pointer-events:none; }
+
+  .tlBlock { position:absolute; top:3px; height:calc(var(--tl-row-h) - 7px); border-radius:6px; cursor:grab;
+             overflow:hidden; border:1.5px solid; }
+  .tlBlock:active { cursor:grabbing; }
+  .tlBlock.cam { background: rgba(106,161,255,0.20); border-color: var(--gold); }
+  .tlBlock.cam.selected { background: rgba(106,161,255,0.42); box-shadow: inset 0 0 0 1.5px var(--ink); }
+  .tlBlock.text { background: rgba(178,156,240,0.22); border-color: var(--amethyst); }
+  .tlBlock.text.selected { background: rgba(178,156,240,0.45); box-shadow: inset 0 0 0 1.5px var(--ink); }
+  .tlBlock.particle { background: rgba(95,207,168,0.18); border-color: var(--emerald); }
+  .tlBlock.particle.selected { background: rgba(95,207,168,0.4); box-shadow: inset 0 0 0 1.5px var(--ink); }
+  .tlBlock.audio { background: rgba(79,179,232,0.16); border-color: #4FB3E8; overflow:hidden; }
+  .tlBlock.audio.selected { background: rgba(79,179,232,0.36); box-shadow: inset 0 0 0 1.5px var(--ink); }
+  .tlBlock.audio.muted { opacity:0.5; }
+  .audioCredit { font-size:12px; color: var(--gold); }
+  .tlBlock.anim { background: rgba(214,120,200,0.18); border-color: #D678C8; overflow:hidden; }
+  .tlBlock.anim.selected { background: rgba(214,120,200,0.38); box-shadow: inset 0 0 0 1.5px var(--ink); }
+  .tlAnimSpan { position:absolute; bottom:3px; height:3px; border-radius:2px; background: rgba(214,120,200,0.75); pointer-events:none; }
+  .tlBlock.blockEnt { background: rgba(176,140,98,0.22); border-color: #B08C62; }
+  .tlBlock.blockEnt.selected { background: rgba(176,140,98,0.45); box-shadow: inset 0 0 0 1.5px var(--ink); }
+  .assetThumb.blockThumb { background-size: 46px 46px; background-position:center; background-repeat:no-repeat; image-rendering: pixelated; }
+  .tlTrans { position:absolute; top:0; bottom:0; pointer-events:none; }
+  .tlTrans.in { left:0; background: linear-gradient(to right, rgba(20,16,30,0.75), rgba(20,16,30,0)); border-left:2px solid #fff6; }
+  .tlTrans.out { right:0; background: linear-gradient(to left, rgba(20,16,30,0.75), rgba(20,16,30,0)); border-right:2px solid #fff6; }
+  .tlWave { position:absolute; left:0; top:0; width:100%; height:100%; pointer-events:none; }
+  .tlFade { position:absolute; top:0; bottom:0; pointer-events:none; }
+  .tlFade.in { left:0; background: linear-gradient(to top right, rgba(0,0,0,0.45) 50%, transparent 50%); }
+  .tlFade.out { right:0; background: linear-gradient(to top left, rgba(0,0,0,0.45) 50%, transparent 50%); }
+  .tlRow.dropHot .tlLane { background: rgba(79,179,232,0.12); }
+  .tlBlock.pose { background: rgba(224,110,160,0.18); border-color: #E06EA0; }
+  .tlBlock.pose.selected { background: rgba(224,110,160,0.4); box-shadow: inset 0 0 0 1.5px var(--ink); }
+  .tlKey.pose { border-color:#3a1428; }
+  .tlKey.pose.joint { width:8px; height:8px; margin-left:-4px; bottom:auto; top:7px; }
+  .tlJointRow.expanded .tlKey.pose.joint { top:auto; bottom:4px; }
+  .tlBlock.pose.open { box-shadow: inset 0 -2px 0 #E06EA0; }
+  .tlJointRow .tlHeader { font-size:11.5px; padding-left:18px; }
+  .tlJointRow { background: rgba(224,110,160,0.03); }
+  .tlJointRow.expanded { background: rgba(224,110,160,0.07); }
+  .tlJointRow.selected .tlHeader { color: var(--gold); font-weight:700; }
+  .tlJointZone { position:absolute; top:0; bottom:0; border-left:1px dashed rgba(224,110,160,0.35);
+                 border-right:1px dashed rgba(224,110,160,0.35); }
+  .tlCurveLine.pose { stroke:#E06EA0; }
+  .tlCurveFill.pose { fill: rgba(224,110,160,0.16); }
+  #timelineTabs { display:flex; align-items:center; gap:4px; padding:5px 10px; border-bottom:1px solid var(--border);
+                  flex-shrink:0; overflow-x:auto; }
+  .tlTab { padding:5px 12px; border-radius:7px; border:1px solid transparent; background:transparent; color: var(--muted);
+           font-family: var(--font-ui); font-size:12px; cursor:pointer; white-space:nowrap; }
+  .tlTab:hover { color: var(--ink); }
+  .tlTab.active { background: var(--surface-2); color: var(--ink); border-color: var(--border); font-weight:700; }
+  .tlTabSep { width:1px; height:18px; background: var(--border); margin:0 6px; }
+  .tlEntitySelect { background: var(--surface-2); color: var(--ink); border:1px solid var(--border); border-radius:7px;
+                    padding:4px 8px; font-size:12px; height:28px; }
+  .bfxPicker { display:flex; flex-direction:column; gap:8px; }
+  .bfxGrid { display:grid; grid-template-columns: repeat(8, 1fr); gap:4px; max-height:170px; overflow-y:auto; }
+  .bfxTile { aspect-ratio:1; border-radius:4px; border:1.5px solid var(--border); background-color: var(--surface-2);
+             background-size:cover; image-rendering:pixelated; cursor:pointer; padding:0; }
+  .bfxTile:hover { border-color: var(--muted); }
+  .bfxTile.active { border-color: var(--gold); box-shadow:0 0 0 2px rgba(106,161,255,0.35); }
+  .consBox { border:1px solid var(--border); border-left:3px solid #f39a33; border-radius:6px; padding:6px 8px; margin:6px 0; display:flex; flex-direction:column; gap:4px; }
+  .consBox.aim { border-left-color:#59e6f2; }
+  .consTitle { font-weight:600; font-size:12px; color:#f39a33; }
+  .consBox.aim .consTitle { color:#59e6f2; }
+  .consEv { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--muted); }
+  .consEv.now { color:var(--text); }
+  .consEvText { cursor:pointer; flex:1; }
+  .consEvText:hover { text-decoration:underline; }
+  .consEvDel { background:none; border:none; color:var(--muted); cursor:pointer; font-size:11px; padding:0 4px; }
+  .consEvDel:hover { color:#e66; }
+  .aaBox { order:99; margin-left:auto; display:flex; align-items:center; gap:8px; flex-shrink:0; }
+  .aaToggle { padding:5px 12px; border-radius:7px; border:1px solid var(--border); background:transparent; color: var(--muted);
+              font-family: var(--font-ui); font-size:12px; cursor:pointer; white-space:nowrap; }
+  .aaSelect { background: var(--surface-2); color: var(--ink); border:1px solid var(--border); border-radius:7px;
+              padding:4px 8px; font-size:12px; height:28px; }
+  .aaToggle.active { background: rgba(95,207,168,0.16); color: var(--emerald); border-color: rgba(95,207,168,0.4); }
+  .aaRange { display:flex; align-items:center; gap:5px; font-size:11px; color: var(--muted); white-space:nowrap; }
+  .aaRange input { width:70px; accent-color: var(--emerald); }
+  .aaVal { min-width:32px; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .tlTabNote { font-size:11px; color: var(--muted); white-space:nowrap; margin-left:6px; }
+  #timelinePoseRow, #timelineJointRows { display:none; }
+  #timelinePanel.tabPose #timelinePoseRow { display:flex; }
+  #timelinePanel.tabPose #timelineJointRows { display:block; }
+  #timelinePanel.tabPose #timelineCameraRows, #timelinePanel.tabPose #timelineTextRow,
+  #timelinePanel.tabPose #timelineParticleRow, #timelinePanel.tabPose #timelineAudioRow, #timelinePanel.tabPose #timelineBlockRow, #timelinePanel.tabPose #timelineAnimRow { display:none; }
+  .assetThumb.pose { background: linear-gradient(160deg, #3a1230, #1b1f27); }
+  .tlBlockThumb { position:absolute; left:4px; top:3px; bottom:3px; width:20px; border-radius:3px;
+                  background-size:cover; background-position:center; pointer-events:none; }
+  .tlBlockLabel.withThumb { left:28px; }
+  .tlBlockLabel { position:absolute; left:8px; top:3px; right:36px; font-size:11px; font-weight:700; color: var(--ink);
+                  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; pointer-events:none; }
+  .tlBlockDur { position:absolute; right:7px; bottom:2px; font-size:9.5px; color: var(--muted); pointer-events:none; }
+  .tlHandle { position:absolute; top:0; bottom:0; width:7px; cursor:ew-resize; z-index:3; }
+  .tlHandle.left { left:0; } .tlHandle.right { right:0; }
+  .tlBlock:hover .tlHandle, .tlBlock.selected .tlHandle { background: rgba(255,255,255,0.14); }
+  /* ◆キー(動くショットの各ポイント) */
+  .tlKey { position:absolute; bottom:5px; width:10px; height:10px; margin-left:-5px; transform:rotate(45deg);
+           background: var(--ink); border:1.5px solid var(--gold-ink); z-index:4; cursor:ew-resize; }
+  .tlKey:hover { background:#fff; box-shadow:0 0 0 2px rgba(255,255,255,0.35); }
+  .tlKey.active { background: var(--gold); border-color:#fff; }
+
+  /* 編集パネルを開いているカメラブロック: 縦に広げて、速さのカーブのグラフを出す */
+  .tlRow.expanded { background: rgba(106,161,255,0.04); }
+  .tlBlock.cam.expanded { background: rgba(106,161,255,0.13); }
+  .tlBlock.cam.expanded.selected { background: rgba(106,161,255,0.2); }
+  .tlCurveGraph { position:absolute; left:0; right:0; }
+  .tlCurveGraph svg { display:block; overflow:visible; }
+  .tlCurveEmpty { position:absolute; left:10px; top:50%; transform:translateY(-50%); font-size:11px; color: var(--muted);
+                  white-space:nowrap; pointer-events:none; }
+  .tlCurveGrid { stroke: rgba(255,255,255,0.08); stroke-width:1; }
+  .tlCurveSeg { fill: transparent; }
+  .tlCurveSeg.hot { fill: rgba(255,255,255,0.05); }
+  .tlCurveKeyLine { stroke: rgba(255,255,255,0.18); stroke-dasharray:2 3; }
+  .tlCurveFill { fill: rgba(106,161,255,0.16); pointer-events:none; }
+  .tlCurveLine { fill:none; stroke: var(--gold); stroke-width:2; pointer-events:none; }
+  .tlCurveArm { stroke: rgba(236,234,227,0.55); stroke-width:1; pointer-events:none; }
+  .tlCurveHandle { fill: var(--surface); stroke: var(--ink); stroke-width:1.6; cursor:move; }
+  .tlCurveHandle:hover { fill: var(--gold); stroke:#fff; }
+  .tlCurveLabel { fill: var(--muted); font-size:10px; font-family: var(--font-ui); pointer-events:none; }
+  .curveSection { display:flex; flex-direction:column; gap:8px; }
+  .curveSegLabel { font-size:12px; color: var(--ink); }
+  .curvePill { display:inline-flex; align-items:center; gap:5px; }
+  .curveIcon { flex-shrink:0; }
+
+  #timelinePlayhead { position:absolute; top:0; bottom:0; width:2px; margin-left:-1px; background: var(--emerald);
+                      z-index:5; pointer-events:none; }
+  #timelinePlayhead::before { content:''; position:absolute; top:0; left:-5px; width:12px; height:10px;
+                              background: var(--emerald); clip-path: polygon(0 0, 100% 0, 50% 100%); }
+  #timelineSnapLine { position:absolute; top:0; bottom:0; width:1px; background:#fff; opacity:.7; z-index:5;
+                      pointer-events:none; display:none; }
+
+  /* ============================================================
+     編集パネル(右側。ブロックのダブルクリックで開く)
+     ============================================================ */
+  #editPanel { position:fixed; top:0; right:0; bottom:0; width:340px; max-width:88vw; z-index:15;
+               background: var(--surface); border-left:1px solid var(--border); box-shadow:-12px 0 32px rgba(0,0,0,0.4);
+               transform:translateX(100%); transition: transform .18s ease; display:flex; flex-direction:column; }
+  #editPanel.open { transform:translateX(0); }
+  #editPanelHeader { display:flex; align-items:center; justify-content:space-between; padding:15px 18px;
+                     border-bottom:1px solid var(--border); }
+  #editPanelHeader h2 { font-family: var(--font-display); font-size:15px; margin:0; }
+  #editPanelClose { background:none; border:none; color: var(--muted); font-size:17px; cursor:pointer; padding:4px; }
+  #editPanelClose:hover { color: var(--ink); }
+  .editPanelBtns { display:flex; align-items:center; gap:6px; }
+  #editPanelHelp { background:none; border:1px solid var(--border); color: var(--muted); font-size:11px; border-radius:999px; padding:3px 9px; cursor:pointer; font-family:inherit; }
+  #editPanelHelp:hover { color: var(--ink); }
+  body.showHints #editPanelHelp { color: var(--ink); border-color: var(--gold); }
+  /* くわしい説明は「？ 説明」を押した時だけ出す */
+  body:not(.showHints) #editPanel .panelHint, body:not(.showHints) #assetList .assetHint:not(.assetPublicNote) { display:none; }
+  #editPanelBody { padding:16px 18px 24px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:14px; }
+  .fieldRow { display:flex; align-items:center; gap:10px; }
+  .fieldRow.column { flex-direction:column; align-items:stretch; gap:6px; }
+  .fieldRow > label { font-size:12.5px; color: var(--muted); min-width:64px; white-space:nowrap; flex-shrink:0; }
+  .fieldRow input[type="range"] { flex:1; accent-color: var(--gold); }
+  .fieldValue { min-width:36px; text-align:right; font-variant-numeric: tabular-nums; font-size:12.5px; }
+  .panelInput { flex:1; min-width:0; background: var(--surface-2); color: var(--ink); border:1px solid var(--border);
+                border-radius:7px; padding:7px 9px; font-family: var(--font-ui); font-size:13px; }
+  .panelInput:focus { outline:none; border-color: var(--gold); }
+  textarea.panelInput { resize:vertical; }
+  .panelInput.small { flex:0 0 72px; padding:4px 6px; font-size:12px; }
+  .panelActions { display:flex; flex-direction:column; gap:6px; }
+  .panelActions .btn { justify-content:center; }
+  .panelSectionLabel { font-size:11px; color: var(--muted); font-weight:700; letter-spacing:.04em; margin-top:4px; }
+  .keyList { display:flex; flex-direction:column; gap:3px; }
+  .keyRow { display:flex; align-items:center; gap:8px; padding:5px 7px; border-radius:6px; cursor:pointer; font-size:12.5px; }
+  .keyRow:hover { background: var(--surface-2); }
+  .keyRow.active { background: rgba(106,161,255,0.16); }
+  .keyRowLabel { flex:1; }
+  .keyRowDel { background:none; border:none; color: var(--muted); cursor:pointer; font-size:12px; padding:2px 5px; }
+  .keyRowDel:hover { color: var(--danger); }
+  .panelHint { font-size:12px; color: var(--muted); line-height:1.65; }
+  .dangerBtn { color: var(--danger); border-color:#4a2222; justify-content:center; }
+  .dangerBtn:hover:not(:disabled) { border-color: var(--danger); }
+  .fieldUnit { font-size:12px; color: var(--muted); }
+  .poseGrid { display:flex; flex-direction:column; gap:6px; }
+  .poseStatus { font-size:12px; line-height:1.5; padding:7px 10px; border-radius:7px; background: var(--surface-2); }
+  .poseStatus.onKey { color: var(--gold); }
+  .poseStatus.noKey { color: var(--ink); border:1px dashed var(--border); }
+  .poseStatus.warn { color:#F0A870; }
+  .fieldRow input[type="range"]:disabled { opacity:.35; }
+  .colorInput { width:44px; height:28px; border:1px solid var(--border); border-radius:6px; background:none; cursor:pointer; padding:0; }
+
+  .settingsRadioGroup { display:flex; gap:6px; flex-wrap:wrap; }
+  .settingsRadioPill { padding:6px 12px; border-radius:8px; border:1px solid var(--border); background:transparent;
+                        color: var(--muted); font-family: var(--font-ui); font-size:12.5px; cursor:pointer; }
+  .settingsRadioPill:hover { border-color: var(--muted); color: var(--ink); }
+  .settingsRadioPill.small { padding:4px 9px; font-size:12px; }
+  .settingsRadioPill.active { background: var(--gold); color: var(--gold-ink); border-color: var(--gold); font-weight:700; }
+
+  /* ============================================================
+     操作ヘルプ
+     ============================================================ */
+  #helpOverlay { position:fixed; inset:0; z-index:25; display:none; align-items:center; justify-content:center;
+                 background:rgba(5,6,9,0.6); backdrop-filter: blur(2px); }
+  #helpOverlay.open { display:flex; }
+  #helpBox { width:720px; max-width:calc(100vw - 40px); max-height:calc(100vh - 60px); overflow-y:auto;
+             background: var(--surface); border:1px solid var(--border); border-radius: var(--radius);
+             padding:20px 24px 24px; box-shadow:0 16px 48px rgba(0,0,0,0.5); }
+  #helpBox h2 { font-family: var(--font-display); font-size:17px; margin:0; }
+  #helpHead { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+  #helpClose { background:none; border:none; color: var(--muted); font-size:18px; cursor:pointer; }
+  .helpCols { display:grid; grid-template-columns: 1fr 1fr; gap:18px 28px; }
+  .helpCols h3 { font-size:12.5px; color: var(--gold); margin:0 0 8px; }
+  .helpCols table { border-collapse:collapse; width:100%; font-size:12.5px; }
+  .helpCols td { padding:4px 0; vertical-align:top; }
+  .helpCols td:first-child { white-space:nowrap; padding-right:12px; color: var(--muted); }
+  .helpFlow { margin:0 0 16px; padding:10px 14px; border-radius:8px; background: var(--surface-2); font-size:12.5px; line-height:1.8; }
+
+  /* ============================================================
+     プロジェクト設定(セクション制: 左ナビ+右コンテンツ)
+     ============================================================ */
+  #settingsModal { position:fixed; inset:0; z-index:20; display:none; align-items:center; justify-content:center;
+                    background:rgba(5,6,9,0.6); backdrop-filter: blur(2px); }
+  #settingsModal.open { display:flex; }
+
+  .tlDot.shmod { background:#9b7bff; }
+  .tlBlock.shmod { background:#2a2440; border-color:#5a4a96; cursor:pointer; }
+  body.light .tlBlock.shmod { background:#e6dfff; border-color:#b4a2f0; }
+  .tlKey.shmodKeyMark { position:absolute; top:6px; width:9px; height:9px; margin-left:-4.5px; transform:rotate(45deg); background:#c8b6ff; border:1px solid #2a2440; cursor:pointer; }
+  .shmodKey { width:22px; height:22px; flex-shrink:0; border-radius:5px; border:1px solid var(--border); background:var(--surface-2); color:var(--muted); cursor:pointer; font-size:11px; padding:0; }
+  .shmodKey.has { color:#c8b6ff; }
+  .shmodKey.on { color:#fff; background:#6b52d6; border-color:#8d77ee; }
+  .shmodKeyNav { display:flex; gap:2px; }
+  .shmodKeyJump { width:18px; height:22px; padding:0; border-radius:4px; border:1px solid var(--border); background:transparent; color:var(--muted); cursor:pointer; }
+  .shmodTexRow { display:flex; gap:10px; align-items:center; border:1px solid var(--border); border-radius:8px; padding:8px; }
+  .shmodTexImg { width:56px; height:56px; object-fit:cover; border-radius:6px; background:#000; image-rendering:pixelated; }
+  .shmodTexCol { display:flex; flex-direction:column; gap:6px; flex:1; }
+  .shmodTexCol select { height:28px; border-radius:6px; background:var(--bg); color:var(--ink); border:1px solid var(--border); }
+  /* ステップ52: 影MOD */
+  /* 3D の画面が見えるように、右に出す(後ろは暗くしない) */
+  #shmodModal { position:fixed; inset:0; z-index:30; display:none; align-items:flex-start; justify-content:flex-end; background:transparent; pointer-events:none; }
+  #shmodModal.open { display:flex; }
+  #shmodBox { pointer-events:auto; width:min(440px, calc(100vw - 32px)); max-height:calc(100vh - 72px); margin:58px 12px 12px; overflow:auto; background:var(--surface); border:1px solid var(--border);
+              border-radius:12px; padding:14px 16px; display:flex; flex-direction:column; gap:10px; box-shadow:0 20px 60px #000a; }
+  #shmodBox.wide { width:min(720px, calc(100vw - 32px)); }
+  .shmodCard > .btn { align-self:flex-start; }
+  #shmodHead { display:flex; align-items:center; justify-content:space-between; }
+  #shmodHead h2 { font-size:16px; margin:0; }
+  #shmodClose { background:none; border:none; color:var(--muted); font-size:16px; cursor:pointer; }
+  #shmodBody { display:flex; flex-direction:column; gap:10px; }
+  .shmodHint { font-size:12px; color:var(--muted); line-height:1.6; }
+  .shmodList { display:grid; grid-template-columns:repeat(auto-fill, minmax(180px, 1fr)); gap:6px; }
+  .shmodItem { text-align:left; padding:8px 10px; border-radius:8px; border:1px solid var(--border); background:var(--surface-2); color:var(--ink); cursor:pointer; }
+  .shmodItem.on { border-color:var(--gold); background:var(--accent-soft); }
+  .shmodItemName { font-size:13px; font-weight:600; }
+  .shmodItemSub { font-size:11px; color:var(--muted); margin-top:2px; }
+  .shmodActs { display:flex; gap:6px; flex-wrap:wrap; }
+  .shmodCard { border:1px solid var(--border); border-radius:10px; padding:10px 12px; display:flex; flex-direction:column; gap:8px; }
+  .shmodTitle { font-size:14px; font-weight:600; }
+  .shmodDesc { font-size:12px; color:var(--muted); line-height:1.6; }
+  .shmodOpt { display:flex; align-items:center; gap:10px; font-size:13px; }
+  .shmodOpt label { width:104px; flex-shrink:0; color:var(--muted); }
+  .shmodOpt input[type=range] { flex:1; }
+  .shmodOpt input[type=text] { flex:1; height:28px; border-radius:6px; border:1px solid var(--border); background:var(--bg); color:var(--ink); padding:0 8px; }
+  .shmodVal { width:52px; text-align:right; font-variant-numeric:tabular-nums; color:var(--muted); font-size:12px; }
+  .shmodErr { margin:0; padding:8px 10px; border-radius:8px; background:rgba(240,90,90,0.12); color:#f3a3a3; font-size:12px; white-space:pre-wrap; max-height:180px; overflow:auto; }
+  .shmodTabs { display:flex; gap:4px; flex-wrap:wrap; }
+  .shmodTab { padding:5px 10px; border-radius:6px; border:1px solid var(--border); background:var(--surface-2); color:var(--muted); cursor:pointer; font-size:12px; }
+  .shmodTab.on { color:var(--ink); border-color:var(--gold); }
+  .shmodCode { width:100%; min-height:320px; resize:vertical; box-sizing:border-box; font-family: ui-monospace, Menlo, Consolas, monospace; font-size:12.5px; line-height:1.55;
+               background:var(--bg); color:var(--ink); border:1px solid var(--border); border-radius:8px; padding:10px; tab-size:2; }
+  #exportModal, #projectModal { position:fixed; inset:0; z-index:30; display:none; align-items:center; justify-content:center; background:rgba(5,4,10,0.82); }
+  #exportModal.open, #projectModal.open { display:flex; }
+  #exportBox, #projectBox { width:min(560px, calc(100vw - 32px)); max-height:calc(100vh - 40px); overflow:auto; background:var(--surface); border:1px solid var(--border);
+               border-radius:12px; padding:16px 18px; display:flex; flex-direction:column; gap:10px; box-shadow:0 20px 60px #000a; }
+  #exportHead, #projectHead { display:flex; align-items:center; justify-content:space-between; }
+  #exportHead h2, #projectHead h2 { font-size:16px; margin:0; }
+  #exportClose, #projectClose { background:none; border:none; color:var(--muted); font-size:16px; cursor:pointer; }
+  #exportBody, #projectBody { display:flex; flex-direction:column; gap:10px; }
+  .exportWarn { color:#f0b35a; font-size:13px; line-height:1.6; }
+  .exportStatus { font-size:13px; }
+  .exportBar { height:10px; border-radius:5px; background:var(--surface-2); overflow:hidden; }
+  .exportBarFill { height:100%; width:0; background:var(--gold); transition:width 0.1s linear; }
+  #exportBtn { color: var(--gold); font-weight:700; border-color: rgba(106,161,255,0.55); }
+  #saveBtn, #openBtn, #exportBtn { flex-shrink:0; white-space:nowrap; }
+  #restoreBar { position:absolute; left:50%; top:64px; transform:translateX(-50%); z-index:8; display:flex; gap:10px; align-items:center;
+                padding:8px 12px; border-radius:10px; font-size:13px; white-space:nowrap; }
+  .exportVideo { width:100%; border-radius:8px; background:#000; max-height:300px; }
+  #settingsModalBox { width:680px; max-width:calc(100vw - 40px); height:460px; max-height:calc(100vh - 80px);
+                       background: var(--surface); border:1px solid var(--border); border-radius: var(--radius);
+                       display:flex; flex-direction:column; box-shadow: 0 16px 48px rgba(0,0,0,0.5); overflow:hidden; }
+  #settingsModalHeader { display:flex; align-items:center; justify-content:space-between; padding:18px 20px;
+                          border-bottom:1px solid var(--border); flex-shrink:0; }
+  #settingsModalHeader h2 { font-family: var(--font-display); font-size:16px; margin:0; }
+  #settingsModalClose { background:none; border:none; color: var(--muted); font-size:18px; cursor:pointer; line-height:1; padding:4px; }
+  #settingsModalClose:hover { color: var(--ink); }
+  #settingsModalMain { flex:1; min-height:0; display:flex; }
+  #settingsNav { width:168px; flex-shrink:0; border-right:1px solid var(--border); padding:12px;
+                 display:flex; flex-direction:column; gap:2px; overflow-y:auto; }
+  .settingsNavItem { display:flex; align-items:center; gap:9px; width:100%; padding:9px 10px; border:none;
+                      border-radius:7px; background:transparent; color: var(--muted); font-family: var(--font-ui);
+                      font-size:13.5px; text-align:left; cursor:pointer; }
+  .settingsNavItem:hover { background: var(--surface-2); color: var(--ink); }
+  .settingsNavItem.active { background: var(--surface-2); color: var(--ink); font-weight:700; }
+  #settingsModalBody { flex:1; min-width:0; padding:20px; overflow-y:auto; display:flex; flex-direction:column; gap:16px; }
+  #settingsModalBody .fieldRow { flex-direction:column; align-items:stretch; gap:6px; }
+  .settingsSectionTitle { font-family: var(--font-display); font-size:14px; font-weight:700; margin:0 0 4px; }
+  #playerTexturePreviewRow { display:flex; align-items:center; gap:14px; margin-top:8px; }
+  #playerTexturePreview { width:56px; height:56px; border-radius:8px; background: var(--surface-2);
+                           display:flex; align-items:center; justify-content:center; font-size:11px; color: var(--muted);
+                           overflow:hidden; flex-shrink:0; }
+  #playerTexturePreview img { width:100%; height:100%; object-fit:cover; image-rendering:pixelated; }
+
+  /* 画面の幅が狭い時は、素材一覧のカードを1列にして幅を詰める */
+  @media (max-width: 1250px) {
+    #assetList { width:170px; }
+    .assetGrid { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 1100px) {
+    #frameInfo { display:none; }
+    #contextHint { max-width:calc(100% - 340px); }
+  }
+
+  /* ============================================================
+     ステップ44: 新しい見た目(シンプル・すっきり)。上の値を上書きする
+     ============================================================ */
+  :root {
+    --bg:#0f1012; --surface:#16171a; --surface-2:#24262b; --ink:#e9e9ec; --muted:#a0a3ab; --border:#2a2c31; --line-soft:#1d1f23;
+    --gold:#6aa1ff; --gold-ink:#08152c; --accent:#2f6fe4; --accent-soft:rgba(106,161,255,0.16);
+    --emerald:#5fcfa8; --emerald-ink:#06231a; --amethyst:#b29cf0; --amethyst-ink:#1c1238;
+    --font-ui:'Noto Sans JP', -apple-system, BlinkMacSystemFont, 'Hiragino Sans', sans-serif;
+    --font-display: var(--font-ui);
+    --font-mono:'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    --glass: rgba(15,16,18,0.8);
+  }
+  .btn-primary { background: var(--accent); color:#fff; }
+  .uiIco { display:block; flex-shrink:0; }
+
+  /* 上のバー */
+  #appBar { height:48px; flex-shrink:0; display:flex; align-items:center; gap:16px; padding:0 12px 0 16px;
+            border-bottom:1px solid var(--border); background: var(--surface); position:relative; z-index:30; }
+  .abSide { flex:1 1 0; min-width:0; display:flex; align-items:center; gap:10px; }
+  .abSide.right { justify-content:flex-end; gap:8px; }
+  #appTitle { font-weight:700; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  #appSub { color: var(--muted); font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .seg { display:flex; padding:3px; gap:2px; border-radius:8px; background: var(--bg); border:1px solid var(--border); flex-shrink:0; }
+  .seg button { height:30px; padding:0 16px; border:none; border-radius:6px; background:transparent; color: var(--muted);
+                font-family: var(--font-ui); font-size:13px; cursor:pointer; white-space:nowrap; }
+  .seg button:hover:not(:disabled) { color: var(--ink); }
+  .seg button.on { background: var(--surface-2); color: var(--ink); font-weight:500; }
+  .seg button:disabled { opacity:.45; cursor:not-allowed; }
+  #saveState { display:flex; align-items:center; gap:6px; color: var(--muted); font-size:12px; margin-right:6px; white-space:nowrap; }
+  .iconBtn { width:36px; height:36px; flex-shrink:0; border:1px solid var(--border); border-radius:8px; background:transparent;
+             color: var(--ink); display:inline-flex; align-items:center; justify-content:center; cursor:pointer; padding:0; }
+  .iconBtn:hover, .iconBtn.open { background: var(--surface-2); }
+  #exportBtn { height:36px; padding:0 16px; border:none; border-radius:8px; background: var(--accent); color:#fff;
+               font-family: var(--font-ui); font-size:13px; font-weight:700; display:inline-flex; align-items:center; gap:8px;
+               cursor:pointer; white-space:nowrap; }
+  #exportBtn:hover { filter:brightness(1.1); }
+  .menuWrap { position:relative; }
+  #appMenu { position:absolute; right:0; top:42px; min-width:236px; padding:6px; display:none; z-index:40;
+             background: var(--surface); border:1px solid var(--border); border-radius:10px; box-shadow:0 14px 36px rgba(0,0,0,0.5); }
+  #appMenu.open { display:block; }
+  #appMenu button { display:flex; width:100%; align-items:center; gap:10px; height:36px; padding:0 10px; border:none; border-radius:6px;
+                    background:transparent; color: var(--ink); font-family: var(--font-ui); font-size:13px; text-align:left; cursor:pointer; }
+  #appMenu button:hover { background: var(--surface-2); }
+  #appMenu button .k { margin-left:auto; color: var(--muted); font-family: var(--font-mono); font-size:11px; }
+  #appMenu hr { border:none; border-top:1px solid var(--border); margin:6px 4px; }
+
+  /* 3D の上: 左上は今の見え方だけ。開発用の数字は出さない */
+  #viewHud { top:16px; left:16px; height:30px; padding:0 12px; display:flex; align-items:center; gap:8px; border-radius:15px;
+             border:none; background: var(--glass); color: var(--ink); font-size:12px; }
+  #viewHud .uiIco { opacity:.85; }
+  #loadStatus { top:54px; left:16px; border:none; border-radius:8px; }
+  #loadStatus.done { display:none; }
+  /* 下のドック(人のところへ・画角) */
+  #topRightControls { top:auto; right:auto; left:50%; bottom:16px; transform:translateX(-50%); gap:4px; padding:4px;
+                      border-radius:12px; background: rgba(15,16,18,0.82); border:1px solid rgba(255,255,255,0.1); backdrop-filter: blur(4px); }
+  #topRightControls .glass { background:transparent; border:none; backdrop-filter:none; }
+  #topRightControls .btn { height:36px; padding:0 12px; border:none; border-radius:8px; color:#e9e9ec; font-weight:500; font-size:13px; white-space:nowrap; display:inline-flex; align-items:center; gap:8px; }
+  #topRightControls .btn:hover { background: rgba(255,255,255,0.08); }
+  #projectSettingsBtn, #helpBtn { display:none !important; }
+  .dockSep { width:1px; height:20px; background: rgba(255,255,255,0.16); margin:0 2px; }
+  #topRightControls #entitySelect { height:32px; max-width:150px; background:transparent; border:1px solid rgba(255,255,255,0.14); color:#e9e9ec; }
+  #fovBox { height:36px; padding:0 10px; color:#a0a3ab; white-space:nowrap; }
+  #fovSlider { width:84px; accent-color: var(--gold); }
+  /* ヒントは上のまん中、通知はその下 */
+  #contextHint { top:16px; bottom:auto; border:none; border-radius:15px; padding:6px 14px; background: var(--glass); max-width:calc(100% - 560px); }
+  #toast { top:60px; }
+  #pinpInset { border-radius:10px; border-color: rgba(255,255,255,0.18); }
+
+  /* 再生のバー */
+  #timelineToolbar { height:48px; padding:0 12px; gap:8px; background: var(--surface); overflow:visible; }
+  .tbBtn { height:32px; min-width:32px; padding:0 8px; border:none; border-radius:8px; background:transparent; color: var(--ink);
+           font-size:13px; gap:6px; }
+  .tbBtn:hover:not(:disabled) { background: var(--surface-2); }
+  .tbBtn:disabled { opacity:.3; }
+  #splitBtn:disabled, #duplicateBtn:disabled, #deleteBtn:disabled { display:none; }
+  #playBtn.tbBtn.primary { width:36px; min-width:36px; height:36px; padding:0; border-radius:18px; background: var(--accent); color:#fff; border:none; }
+  #playBtn.tbBtn.primary:hover { filter:brightness(1.12); }
+  #toStartBtn { color: var(--muted); }
+  #timecode { font-family: var(--font-mono); font-size:13px; min-width:0; text-align:left; }
+  #timecode .tcTotal { color: var(--muted); }
+  #zoomOutBtn, #zoomFitBtn, #zoomInBtn { color: var(--muted); }
+
+  /* 右のパネルは上のバーの下から */
+  #editPanel { top:48px; box-shadow:none; }
+  #editPanelHeader h2 { font-size:15px; }
+
+  /* ステップ45: タイムライン(1本の一覧・空の行は出さない・落ち着いた色) */
+  #timelineTabs { display:none !important; }
+  #timelinePanel.tabPose #timelineCameraRows { display:block; }
+  #timelinePanel.tabPose #timelineTextRow, #timelinePanel.tabPose #timelineParticleRow, #timelinePanel.tabPose #timelineAudioRow,
+  #timelinePanel.tabPose #timelineBlockRow, #timelinePanel.tabPose #timelineAnimRow { display:flex; }
+  .tlRow.isEmpty, #timelineCameraRows.isEmpty { display:none !important; }
+  body.assetDragging .tlRow.isEmpty, body.assetDragging #timelineCameraRows.isEmpty { display:flex !important; }
+  body.assetDragging #timelineCameraRows.isEmpty { display:block !important; }
+  body.fileDragging #timelineAudioRow.isEmpty { display:flex !important; }
+  #tlHintRow { display:none; }
+  #tlHintRow.show { display:flex; }
+  .tlHintText { position:sticky; left: calc(var(--tl-header-w) + 12px); display:inline-block; line-height: var(--tl-row-h);
+                font-size:12px; color: var(--muted); white-space:nowrap; margin-left:12px; }
+  .tlRow { border-bottom-color: var(--line-soft); }
+  .tlHeader { font-size:12.5px; gap:8px; padding:0 8px 0 12px; }
+  .tlDot { width:8px; height:8px; border-radius:2px; flex-shrink:0; background: var(--muted); }
+  .tlDot.cam { background:#6aa1ff; } .tlDot.text { background:#b29cf0; } .tlDot.particle { background:#5cc6d6; }
+  .tlDot.blockEnt { background:#c9a27a; } .tlDot.anim { background:#e08fd6; } .tlDot.audio { background:#e8b35a; } .tlDot.person { background:#5fcfa8; }
+  #timelineRulerRow { height:28px; }
+  #timelineRulerRow .tlHeader { border-bottom:1px solid var(--border); }
+  .tlRulerMark { border-left-color: var(--border); line-height:26px; font-family: var(--font-mono); font-size:10.5px; }
+  .tlRulerMinor { border-left-color: var(--line-soft); }
+  .tlGroupRow .tlHeader { font-weight:500; }
+  .tlPeoplePick { position:sticky; left: calc(var(--tl-header-w) + 8px); margin-left:8px; display:inline-flex; align-items:center; gap:10px; height:100%; }
+  .tlPeopleNote { font-size:12px; color: var(--muted); white-space:nowrap; }
+  .tlEntitySelect { height:26px; padding:0 8px; background: var(--bg); }
+  .tlPersonRow .tlHeader { padding-left:28px; cursor:pointer; color: var(--muted); }
+  .tlPersonRow .tlHeader:hover { color: var(--ink); }
+  .tlPersonName { overflow:hidden; text-overflow:ellipsis; }
+  .tlPersonRow.selected .tlHeader { color: var(--ink); font-weight:500; background:#1a1f29; }
+  .tlPersonRow.selected { background: rgba(106,161,255,0.04); }
+  .tlJointRow .tlHeader { padding-left:44px; font-size:12px; color: var(--muted); }
+  .tlJointRow.selected .tlHeader { color: var(--gold); font-weight:500; background:#1a1f29; }
+  .tlJointRow { background: transparent; }
+  .tlJointRow.selected { background: rgba(106,161,255,0.05); }
+  .tlJointRow.expanded { background: rgba(106,161,255,0.07); }
+  .tlJointZone { border-left-color: rgba(95,207,168,0.3); border-right-color: rgba(95,207,168,0.3); }
+  .tlCurveLine.pose { stroke:#5fcfa8; }
+  .tlCurveFill.pose { fill: rgba(95,207,168,0.14); }
+  .tlBlock { border-width:1px; border-radius:6px; }
+  .tlBlockLabel { font-weight:500; font-size:12px; top:4px; }
+  .tlBlock.cam, .tlBlock.cam.expanded { background:#1d3150; border-color:#2f4d7d; }
+  .tlBlock.text { background:#33294b; border-color:#4d3f70; }
+  .tlBlock.particle { background:#173a3f; border-color:#285e66; }
+  .tlBlock.audio { background:#3b301a; border-color:#5c4b28; }
+  .tlBlock.anim { background:#3d2240; border-color:#633a68; }
+  .tlBlock.blockEnt { background:#3a2e22; border-color:#5c4a37; }
+  .tlBlock.pose { background:#1c3a33; border-color:#2c5a4e; }
+  .tlBlock.pose.gen { background:#3d2240; border-color:#633a68; }
+  .tlBlock.selected, .tlBlock.cam.selected, .tlBlock.cam.expanded.selected, .tlBlock.text.selected, .tlBlock.particle.selected,
+  .tlBlock.audio.selected, .tlBlock.anim.selected, .tlBlock.blockEnt.selected, .tlBlock.pose.selected { box-shadow: inset 0 0 0 2px var(--gold); }
+  .tlBlock.cam.selected, .tlBlock.cam.expanded.selected { background:#25406a; }
+  .tlBlock.text.selected { background:#40345e; }
+  .tlBlock.particle.selected { background:#1d4a51; }
+  .tlBlock.audio.selected { background:#4a3c21; }
+  .tlBlock.anim.selected, .tlBlock.pose.gen.selected { background:#4c2b50; }
+  .tlBlock.blockEnt.selected { background:#493a2b; }
+  .tlBlock.pose.selected { background:#234a41; }
+  .tlBlock.pose.open { box-shadow: inset 0 -2px 0 #5fcfa8; }
+  .tlBlock.pose.open.selected { box-shadow: inset 0 0 0 2px var(--gold); }
+  .tlKey { border-color: var(--bg); background:#d4d5d9; }
+  .tlKey.pose { border-color: var(--bg); }
+  .tlAnimSpan { background: rgba(224,143,214,0.7); }
+  #timelinePlayhead { background: var(--gold) !important; }
+  #timelinePlayhead::before { background: var(--gold) !important; border-color: var(--gold) !important; }
+  .aaPanel .aaBox { margin-left:0; flex-wrap:wrap; gap:10px; }
+  .aaPanel .aaRange input { width:110px; }
+
+  /* ステップ46: 右のパネル */
+  #editPanelHeader { padding:14px 12px 12px 16px; }
+  #editPanelBody { padding:12px 16px 24px; gap:12px; }
+  .pSec { display:flex; flex-direction:column; border-top:1px solid var(--border); margin:0 -16px; padding:0 16px; }
+  .pSecHead { display:flex; align-items:center; gap:10px; height:44px; padding:0; border:none; background:transparent;
+              color: var(--ink); font-family: var(--font-ui); font-size:13px; font-weight:700; text-align:left; cursor:pointer; }
+  .pSecHead:hover { color:#fff; }
+  .pSecChev { color: var(--muted); transition: transform .15s ease; }
+  .pSec.open .pSecChev { transform: rotate(90deg); }
+  .pSecBody { display:none; flex-direction:column; gap:12px; padding-bottom:16px; }
+  .pSec.open .pSecBody { display:flex; }
+  .panelSectionLabel { font-size:12px; color: var(--muted); font-weight:500; letter-spacing:0; }
+  .settingsRadioPill { border-radius:14px; padding:5px 12px; }
+  .settingsRadioPill.small { padding:4px 10px; }
+  .settingsRadioPill.active { background: var(--accent-soft); color: var(--ink); border-color: var(--gold); font-weight:500; }
+  .btn-ghost:hover:not(:disabled) { background: var(--surface-2); border-color: var(--border); }
+  .btn-sm { border-radius:8px; min-height:36px; justify-content:center; }
+  .dangerBtn { border-color: var(--border); }
+  .poseStatus.noKey { border:none; background: var(--surface-2); color: var(--muted); }
+  .settingsRadioGroup.hiddenPills { display:none; }
+  .bodyPick { display:flex; flex-direction:column; align-items:center; gap:10px; padding:4px 0; }
+  .bodyFig { display:grid; grid-template-columns: 22px 48px 22px; grid-template-rows: 42px 60px 60px; gap:4px;
+             grid-template-areas: ". head ." "armR body armL" ". legs ."; }
+  .bodyFig .bp { position:relative; border:1px solid var(--border); border-radius:6px; background: var(--surface-2); cursor:pointer; padding:0; }
+  .bodyFig .bp:hover { border-color: var(--muted); }
+  .bodyFig .bp.on { border:2px solid var(--gold); background: rgba(47,111,228,0.28); }
+  .bodyFig .head { grid-area: head; width:42px; justify-self:center; }
+  .bodyFig .armR { grid-area: armR; } .bodyFig .body { grid-area: body; } .bodyFig .armL { grid-area: armL; }
+  .bodyFig .legR { grid-row:3; grid-column:2; width:22px; justify-self:start; }
+  .bodyFig .legL { grid-row:3; grid-column:2; width:22px; justify-self:end; }
+  .bpKey { position:absolute; right:3px; top:3px; width:6px; height:6px; transform:rotate(45deg); background: var(--gold); }
+  .bpRoot { height:30px; padding:0 14px; border:1px solid var(--border); border-radius:15px; background:transparent; color: var(--ink);
+            font-family: var(--font-ui); font-size:12px; cursor:pointer; }
+  .bpRoot:hover { border-color: var(--muted); }
+  .bpRoot.on { border-color: var(--gold); background: var(--accent-soft); }
+  .bpCap { font-size:12px; color: var(--muted); }
+  .bpCap b { color: var(--ink); font-weight:500; }
+  .curvePill { flex-direction:column; justify-content:center; gap:4px; height:56px; padding:0 4px; font-size:11px; border-radius:8px; flex:1 1 0; }
+  .settingsRadioGroup:has(> .curvePill) { display:grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap:6px; }
+
+  /* ステップ47: 左の素材の一覧 = アイコンを押すと出る引き出し(3Dの上に重なる) */
+  #assetPanel { position:relative; z-index:25; }
+  #assetRail { width:64px; padding:10px 6px; gap:4px; border-right:none; }
+  .assetRailBtn { width:52px; min-height:52px; padding:6px 0 5px; gap:4px; border-radius:10px; justify-content:center; }
+  .assetRailBtn .ico { display:flex; font-size:20px; }
+  .assetRailBtn .lbl { font-size:10.5px; }
+  .assetRailBtn.active { background: var(--surface-2); color: var(--ink); }
+  #assetPanel #assetList { position:absolute; left:100%; top:0; bottom:0; width:376px; padding:14px 16px 16px; gap:12px;
+                           background: var(--surface); border-left:1px solid var(--border); border-right:1px solid var(--border);
+                           box-shadow:12px 0 32px rgba(0,0,0,0.38); }
+  body.assetDragging #assetPanel #assetList { opacity:.25; pointer-events:none; transition: opacity .15s ease; }
+  .assetListHead { display:flex; align-items:center; gap:8px; margin:-2px -4px 0 0; }
+  .assetListHead .assetListTitle { flex:1; font-size:15px; }
+  .assetClose { width:32px; height:32px; border:none; border-radius:8px; background:transparent; color: var(--muted); display:flex;
+                align-items:center; justify-content:center; cursor:pointer; padding:0; }
+  .assetClose:hover { background: var(--surface-2); color: var(--ink); }
+  #assetList .assetSearch { height:36px; border-radius:8px; background: var(--bg); padding:0 10px; }
+  .assetTagRow { gap:6px; }
+  .assetTag { height:28px; padding:0 12px; font-size:12px; border-radius:14px; color: var(--ink); }
+  .assetTag.active { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  #assetPanel .assetGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap:12px; }
+  .assetCard { padding:0; border-radius:10px; overflow:hidden; background: var(--bg); }
+  .assetCard:hover { border-color: var(--muted); transform:none; }
+  .assetThumb { height:76px; border-radius:0; font-size:28px; }
+  .assetThumb.camera { background: linear-gradient(160deg, #1d3150, #12161d); }
+  .assetThumb.text { background: linear-gradient(160deg, #33294b, #14121b); }
+  .assetThumb.pose { background: linear-gradient(160deg, #1c3a33, #111816); }
+  .assetName { font-size:13px; padding:8px 10px 0; }
+  .assetDesc { font-size:11.5px; padding:2px 10px 10px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .assetCard.open .assetName, .assetCard.open .assetDesc { padding-left:10px; padding-right:10px; }
+  .assetTools { border-top:1px solid var(--border); padding-top:12px; }
+  .assetTools .btn { justify-content:center; border-style:dashed; }
+
+  /* ステップ48: 小窓は右上 */
+  #pinpInset { top:16px; bottom:auto; right:16px; width:256px; height:144px; }
+  /* ステップ48: 人を動かす道具の帯(3Dの上のまん中) */
+  #poseToolbar { position:absolute; top:16px; left:50%; transform:translateX(-50%); z-index:7; display:none; align-items:center; gap:4px;
+                 padding:4px; border-radius:12px; background: rgba(15,16,18,0.84); border:1px solid rgba(255,255,255,0.1); backdrop-filter: blur(4px); }
+  #poseToolbar.show { display:flex; }
+  #poseToolbar button { height:36px; padding:0 12px; border:none; border-radius:8px; background:transparent; color:#e9e9ec;
+                        font-family: var(--font-ui); font-size:13px; display:inline-flex; align-items:center; gap:8px; cursor:pointer; white-space:nowrap; }
+  #poseToolbar button:hover { background: rgba(255,255,255,0.08); }
+  #poseToolbar button.on { background: rgba(106,161,255,0.24); color:#fff; }
+  #poseToolbar button:disabled { opacity:.35; cursor:not-allowed; }
+  #poseToolbar .k { font-family: var(--font-mono); font-size:11px; color:#a0a3ab; border:1px solid rgba(255,255,255,0.2); border-radius:4px; padding:0 5px; }
+  #poseToolbar .ptKey { background:#2f6fe4; color:#fff; font-weight:700; padding:0 14px; }
+  #poseToolbar .ptKey:hover { background:#2f6fe4; filter:brightness(1.12); }
+  #poseToolbar .ptKey .k { color:#fff; border-color: rgba(255,255,255,0.45); }
+  #poseToolbar.noAttach .ptAttach, #poseToolbar.noAttach .ptAttachSep { display:none; }
+  #freecamArea.toolbarOn #contextHint { top:68px; }
+  #freecamArea.toolbarOn #toast { top:108px; }
+
+  .editPanelTitles { min-width:0; display:flex; flex-direction:column; gap:2px; }
+  #editPanelSub { font-size:12px; color: var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  #editPanelSub:empty { display:none; }
+
+  /* ステップ48: 明るい色(メニューの「明るい色にする」。3D の上の帯・ドックは暗いまま) */
+  body.light { --bg:#eceef1; --surface:#f7f8fa; --surface-2:#ffffff; --ink:#17181b; --muted:#5b5f68; --border:#d9dce1; --line-soft:#e3e5e9;
+               --gold:#2f6fe4; --gold-ink:#ffffff; --accent-soft:rgba(47,111,228,0.12); --emerald:#1f9a72; --emerald-ink:#ffffff;
+               --amethyst:#7b5cd6; --amethyst-ink:#ffffff; color-scheme: light; }
+  body.light #uploadScreen { background: radial-gradient(ellipse at 30% 20%, #ffffff 0%, var(--bg) 60%); }
+  body.light .tlBlock.cam, body.light .tlBlock.cam.expanded { background:#dbe7fd; border-color:#a9c4f5; }
+  body.light .tlBlock.text { background:#ebe3fb; border-color:#c9b8ef; }
+  body.light .tlBlock.particle { background:#d7f1f4; border-color:#9fd3dc; }
+  body.light .tlBlock.audio { background:#f8ead0; border-color:#e2c58c; }
+  body.light .tlBlock.anim, body.light .tlBlock.pose.gen { background:#f6dcf2; border-color:#dfaed6; }
+  body.light .tlBlock.blockEnt { background:#efe4d8; border-color:#cdb59b; }
+  body.light .tlBlock.pose { background:#d9f1e8; border-color:#9fd6c2; }
+  body.light .tlBlock.cam.selected, body.light .tlBlock.cam.expanded.selected { background:#c7d9fb; }
+  body.light .tlBlock.text.selected { background:#ddd0f7; }
+  body.light .tlBlock.particle.selected { background:#c2e8ed; }
+  body.light .tlBlock.audio.selected { background:#f3dcb3; }
+  body.light .tlBlock.anim.selected, body.light .tlBlock.pose.gen.selected { background:#efc8e9; }
+  body.light .tlBlock.blockEnt.selected { background:#e5d4c1; }
+  body.light .tlBlock.pose.selected { background:#c3e9dc; }
+  body.light .tlKey { background:#5b5f68; border-color:#ffffff; }
+  body.light .tlPersonRow.selected .tlHeader, body.light .tlJointRow.selected .tlHeader { background:#e2e9f7; }
+  body.light .tlDot.cam { background:#2f6fe4; } body.light .tlDot.text { background:#7b5cd6; } body.light .tlDot.particle { background:#1d9aae; }
+  body.light .tlDot.blockEnt { background:#a4794c; } body.light .tlDot.anim { background:#c457b5; } body.light .tlDot.audio { background:#b7801f; } body.light .tlDot.person { background:#1f9a72; }
+  body.light .assetThumb.camera { background: linear-gradient(160deg, #dbe7fd, #f3f6fb); }
+  body.light .assetThumb.text { background: linear-gradient(160deg, #ebe3fb, #f6f3fc); }
+  body.light .assetThumb.pose { background: linear-gradient(160deg, #d9f1e8, #f2f8f6); }
+  body.light .assetThumb.particle { background-color:#d7f1f4; }
+  body.light .assetThumb.script { background: linear-gradient(160deg, #d9f1e8, #f2f8f6); }
+  body.light #assetPanel #assetList { box-shadow:12px 0 32px rgba(20,24,32,0.14); }
+  body.light #appMenu { box-shadow:0 14px 36px rgba(20,24,32,0.18); }
+  body.light .bodyFig .bp.on { background: rgba(47,111,228,0.16); }
+  body.light .tlRulerMinor { border-left-color:#cfd3d9; }
+  body.light #viewHud, body.light #contextHint, body.light #fovValue, body.light #loadStatus, body.light #pilotLabel { color:#e9e9ec; }
+  body.light #topRightControls #entitySelect { color-scheme: dark; }
+
+  /* ステップ49: 建築 */
+  .tlDot.build { background:#e0874a; }
+  .tlBlock.build { background:#3a2a1c; border-color:#6a4a2e; }
+  .tlBlock.build.selected { background:#4a3524; }
+  .tlBuildAnim { position:absolute; top:0; bottom:0; pointer-events:none; }
+  .tlBuildAnim.in { left:0; background: linear-gradient(to right, rgba(224,135,74,0.45), rgba(224,135,74,0)); }
+  .tlBuildAnim.out { right:0; background: linear-gradient(to left, rgba(224,135,74,0.45), rgba(224,135,74,0)); }
+  .assetThumb.build { background-color:#1b1712; }
+  .assetThumb.buildThumb { background-size:contain; background-position:center; background-repeat:no-repeat; image-rendering: pixelated; }
+  body.light .tlDot.build { background:#c0641f; }
+  body.light .tlBlock.build { background:#f6e2d2; border-color:#e2b591; }
+  body.light .tlBlock.build.selected { background:#efd0b8; }
+  body.light .assetThumb.build { background-color:#efe7de; }
+</style>
+</head>
+<body>
+
+<div id="uploadScreen">
+  <div id="uploadHero">
+    <div class="copy">
+      <p class="eyebrow-word">for Bloxd.io</p>
+      <h1>リプレイを、<br>見せられる動画に。</h1>
+      <p class="lead">
+        .bloxdreplay ファイルをアップロードすると、ブラウザの中だけで自由カメラを
+        動かしてその場を見て回れます。サーバーには何も送信されません。
+      </p>
+      <div id="uploadCard">
+        <input type="file" id="fileInput" accept=".bloxdreplay">
+        <button id="processBtn" class="btn btn-primary" disabled>読み込む準備中...</button>
+        <div id="uploadStatus"></div>
+      </div>
+    </div>
+    <div class="hero-art">
+      <svg viewBox="0 0 160 160" aria-hidden="true">
+        <g transform="translate(40,90)">
+          <path d="M 0,-22 L 44,0 L 0,22 L -44,0 Z" fill="#3ECF8E"/>
+          <path d="M -44,0 L 0,22 L 0,76 L -44,54 Z" fill="#2FA26E"/>
+          <path d="M 44,0 L 0,22 L 0,76 L 44,54 Z" fill="#227A53"/>
+        </g>
+        <g transform="translate(120,90)">
+          <path d="M 0,-22 L 44,0 L 0,22 L -44,0 Z" fill="#8B7FE8"/>
+          <path d="M -44,0 L 0,22 L 0,76 L -44,54 Z" fill="#6C63B8"/>
+          <path d="M 44,0 L 0,22 L 0,76 L 44,54 Z" fill="#4E4886"/>
+        </g>
+        <g transform="translate(80,44)">
+          <path d="M 0,-22 L 44,0 L 0,22 L -44,0 Z" fill="#6aa1ff"/>
+          <path d="M -44,0 L 0,22 L 0,76 L -44,54 Z" fill="#B87F2E"/>
+          <path d="M 44,0 L 0,22 L 0,76 L 44,54 Z" fill="#8F631F"/>
+        </g>
+      </svg>
+    </div>
+  </div>
+</div>
+
+<div id="editor">
+  <header id="appBar">
+    <div class="abSide">
+      <svg class="uiIco" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6aa1ff" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M4 7.5l8 4.5 8-4.5M12 12v9"/></svg>
+      <span id="appTitle">リプレイ</span>
+      <span id="appSub"></span>
+    </div>
+    <div class="seg" id="viewModeSeg" role="group" aria-label="大きく映す画面">
+      <button type="button" data-mode="edit" class="on" title="自由に動いて編集する画面">編集</button>
+      <button type="button" data-mode="preview" title="カメラで撮った、できあがりの映像(カメラを置くと使えます)">できあがり</button>
+    </div>
+    <div class="abSide right">
+      <span id="saveState"></span>
+      <div class="menuWrap">
+        <button type="button" id="appMenuBtn" class="iconBtn" aria-label="メニュー" aria-haspopup="true" aria-expanded="false" title="メニュー">
+          <svg class="uiIco" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg>
+        </button>
+        <div id="appMenu" role="menu"></div>
+      </div>
+      <span id="exportSlot"></span>
+    </div>
+  </header>
+  <div id="editorMain">
+  <!-- 左: 素材一覧(カテゴリ+素材カード。asset-library.js が中身を作る) -->
+  <div id="assetPanel">
+    <div id="assetRail"></div>
+    <div id="assetList"></div>
+  </div>
+  <div id="freecamArea">
+    <canvas id="freecamCanvas" tabindex="-1"></canvas>
+    <div id="freecamCrosshair"></div>
+    <div id="pilotFrame"><div id="pilotLabel"></div></div>
+    <div id="textOverlayLayer"></div>
+    <div id="pinpInset" title="クリックで主画面と入れ替え"></div>
+
+    <div id="viewHud" class="glass">-</div>
+    <div id="loadStatus" class="glass"></div>
+
+    <div id="topRightControls">
+      <select id="entitySelect" title="見る人(人のところへ・カメラの素材が使う)"></select>
+      <button id="gotoBtn" class="btn btn-ghost btn-sm glass" title="その人のところへ視点を動かす"><svg class="uiIco" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>人のところへ</button>
+      <span class="dockSep"></span>
+      <div id="fovBox" class="glass">画角 <input type="range" id="fovSlider" min="20" max="110" value="70"><span id="fovValue">70°</span></div>
+      <button id="projectSettingsBtn" class="btn btn-ghost btn-sm glass">⚙ 設定</button>
+      <button id="helpBtn" class="btn btn-ghost btn-sm glass" title="操作ヘルプ (?)">？ 操作</button>
+    </div>
+
+    <div id="poseToolbar" role="toolbar" aria-label="人を動かす道具">
+      <button type="button" data-tool="move" title="位置を動かす矢印 (G)"><svg class="uiIco" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18M3 12h18M9 6l3-3 3 3M9 18l3 3 3-3M6 9l-3 3 3 3M18 9l3 3-3 3"/></svg>動かす<span class="k">G</span></button>
+      <button type="button" data-tool="rotate" title="回すリング (R)"><svg class="uiIco" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 11-2.3-5.7"/><path d="M20 4v5h-5"/></svg>回す<span class="k">R</span></button>
+      <button type="button" data-tool="ik" title="手足の先を引っぱる (T)"><svg class="uiIco" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2"/></svg>手足<span class="k">T</span></button>
+      <span class="dockSep ptAttachSep"></span>
+      <button type="button" data-act="attach" class="ptAttach" title="ほかの物にくっつける (L)"><svg class="uiIco" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1"/></svg>くっつける</button>
+      <span class="dockSep"></span>
+      <button type="button" data-act="key" class="ptKey" title="選んでいる関節に、今の形でキーを打つ (K)"><svg class="uiIco" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3l9 9-9 9-9-9z"/></svg>キーを打つ<span class="k">K</span></button>
+    </div>
+    <div id="contextHint" class="glass"></div>
+    <div id="toast"></div>
+  </div>
+  </div>
+
+  <div id="timelinePanel">
+    <div id="timelineResizer" title="ドラッグでタイムラインの高さを変える"></div>
+    <div id="timelineToolbar">
+      <button id="toStartBtn" class="tbBtn" title="先頭へ (Home)" aria-label="先頭へ"><svg class="uiIco" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 5v14M19 5l-10 7 10 7z"/></svg></button>
+      <button id="playBtn" class="tbBtn primary" title="再生/一時停止 (Space)" aria-label="再生"><svg class="uiIco" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 5l11 7-11 7z"/></svg></button>
+      <div id="timecode">0:00.0 / 0:00</div>
+      <div class="tbSep"></div>
+      <button id="undoBtn" class="tbBtn" title="取り消し (Ctrl/Cmd+Z)" aria-label="取り消し" disabled><svg class="uiIco" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 010 12h-3"/></svg></button>
+      <button id="redoBtn" class="tbBtn" title="やり直し (Ctrl/Cmd+Shift+Z)" aria-label="やり直し" disabled><svg class="uiIco" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 14l5-5-5-5"/><path d="M20 9H10a6 6 0 000 12h3"/></svg></button>
+      <div class="tbSep"></div>
+      <button id="splitBtn" class="tbBtn" title="選んでいるブロックを、再生ヘッドの所で2つに分ける (B)" disabled><svg class="uiIco" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4L8.1 15.9M14.5 14.5L20 20M8.1 8.1L12 12"/></svg>分ける</button>
+      <button id="duplicateBtn" class="tbBtn" title="複製 (Ctrl/Cmd+D)" disabled><svg class="uiIco" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 012-2h8"/></svg>複製</button>
+      <button id="deleteBtn" class="tbBtn" title="消す (Delete)" disabled><svg class="uiIco" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>消す</button>
+      <div class="tbSpacer"></div>
+      <div id="frameInfo">-</div>
+      <button id="zoomOutBtn" class="tbBtn" title="縮小 (Ctrl/Cmd+ホイール)" aria-label="縮小"><svg class="uiIco" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/></svg></button>
+      <button id="zoomFitBtn" class="tbBtn" title="全体を表示" aria-label="全体を表示"><svg class="uiIco" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+      <button id="zoomInBtn" class="tbBtn" title="拡大 (Ctrl/Cmd+ホイール)" aria-label="拡大"><svg class="uiIco" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+    </div>
+    <div id="timelineTabs"></div>
+    <div id="timelineScroll">
+      <div id="timelineContent">
+        <div class="tlRow" id="timelineRulerRow">
+          <div class="tlHeader"></div>
+          <div class="tlLane" id="timelineRulerLane"></div>
+        </div>
+        <div id="timelineCameraRows"></div>
+        <div class="tlRow" id="timelineTextRow">
+          <div class="tlHeader"><span class="tlDot text"></span><span>テキスト</span></div>
+          <div class="tlLane" id="timelineTextLane"></div>
+        </div>
+        <div class="tlRow" id="timelineShmodRow">
+          <div class="tlHeader"><span class="tlDot shmod"></span><span>影MOD</span></div>
+          <div class="tlLane" id="timelineShmodLane"></div>
+        </div>
+        <div class="tlRow" id="timelineBuildRow">
+          <div class="tlHeader"><span class="tlDot build"></span><span>建築</span></div>
+          <div class="tlLane" id="timelineBuildLane"></div>
+        </div>
+        <div class="tlRow" id="timelineParticleRow">
+          <div class="tlHeader"><span class="tlDot particle"></span><span>パーティクル</span></div>
+          <div class="tlLane" id="timelineParticleLane"></div>
+        </div>
+        <div class="tlRow" id="timelineBlockRow">
+          <div class="tlHeader"><span class="tlDot blockEnt"></span><span>ブロック</span></div>
+          <div class="tlLane" id="timelineBlockLane"></div>
+        </div>
+        <div class="tlRow" id="timelineAnimRow">
+          <div class="tlHeader"><span class="tlDot anim"></span><span>全体アニメ</span></div>
+          <div class="tlLane" id="timelineAnimLane"></div>
+        </div>
+        <div class="tlRow" id="timelineAudioRow">
+          <div class="tlHeader"><span class="tlDot audio"></span><span>音</span></div>
+          <div class="tlLane" id="timelineAudioLane"></div>
+        </div>
+        <div id="timelinePeopleRows"></div>
+        <div class="tlRow" id="tlHintRow"><div class="tlHeader"></div><div class="tlLane"><div class="tlHintText">左の素材をここへドラッグ · F キーで今の視点にカメラを置く</div></div></div>
+        <div id="timelinePlayhead"></div>
+        <div id="timelineSnapLine"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 右側スライドパネル(ブロックのダブルクリックで開く) -->
+<div id="editPanel">
+  <div id="editPanelHeader">
+    <div class="editPanelTitles"><h2 id="editPanelTitle">ブロックを編集</h2><div id="editPanelSub"></div></div>
+    <div class="editPanelBtns">
+      <button id="editPanelHelp" type="button" title="くわしい説明を出す・しまう">？ 説明</button>
+      <button id="editPanelClose" title="閉じる (Esc)">✕</button>
+    </div>
+  </div>
+  <div id="editPanelBody"></div>
+</div>
+
+<!-- 操作ヘルプ(? キー / 右上の「？ 操作」) -->
+<div id="helpOverlay">
+  <div id="helpBox">
+    <div id="helpHead"><h2>操作ヘルプ</h2><button id="helpClose">✕</button></div>
+    <div class="helpFlow">
+      <b>基本の流れ:</b> 左の素材一覧から「🎥 カメラ」を選んで追加(クリック、またはタイムラインへドラッグ)。
+      または、ドラッグで見回しながら WASD で良いアングルへ行って <kbd>F</kbd>。<br>
+      動かしたい時は、再生ヘッドを進めて別のアングルへ行き <kbd>K</kbd>(これで動くショットになります)。
+      細かい位置・角度は、タイムラインのカメラをダブルクリックして数値で直せます。<kbd>Space</kbd> で再生して確認。
+    </div>
+    <div class="helpCols">
+      <div>
+        <h3>視点の操作</h3>
+        <table>
+          <tr><td>何も無い所をドラッグ</td><td>見回す(左・右どちらのボタンでも)</td></tr>
+          <tr><td>WASD</td><td>移動(ドラッグ中は Space/Shift でも上下)</td></tr>
+          <tr><td>Q / E</td><td>下降 / 上昇</td></tr>
+          <tr><td>ドラッグ中にホイール</td><td>移動速度を変える</td></tr>
+          <tr><td>ホイール</td><td>前後に移動</td></tr>
+          <tr><td>中ボタンドラッグ</td><td>平行移動</td></tr>
+        </table>
+      </div>
+      <div>
+        <h3>カメラ</h3>
+        <table>
+          <tr><td>素材一覧</td><td>後ろから・周りを回る等のカメラを追加(⚙で秒数・距離など)</td></tr>
+          <tr><td>カメラの素材</td><td>どれもスクリプト。置いた後も、ダブルクリックで設定を変えると作り直せる。カスタムで自分で書ける(.js)</td></tr>
+          <tr><td><kbd>F</kbd></td><td>今の構図で、再生ヘッドの位置にカメラを置く</td></tr>
+          <tr><td><kbd>K</kbd></td><td>今の構図を、再生ヘッドの時刻のキーとして記録</td></tr>
+          <tr><td><kbd>L</kbd></td><td>選んでいるブロック・人形をくっつける(① 自分の点 → ② 相手の点をクリック)</td></tr>
+          <tr><td><kbd>V</kbd></td><td>選択中のカメラの目線に入る/戻る</td></tr>
+          <tr><td>カメラをダブルクリック</td><td>位置・角度・画角・表示位置・動きの速さを直す(キーは自動で作られる)</td></tr>
+          <tr><td>箱 / ◆をクリック</td><td>そのカメラを選ぶ / そのポイントの時刻へ</td></tr>
+          <tr><td>矢印 / リングをドラッグ</td><td>再生ヘッドの時刻の位置 / 向きを直す(ポイントが無ければ自動で作る)</td></tr>
+          <tr><td>Shift+矢印 / リング</td><td>カメラ全体(全ポイント)をまとめて動かす / 回す</td></tr>
+        </table>
+      </div>
+      <div>
+        <h3>タイムライン</h3>
+        <table>
+          <tr><td><kbd>Space</kbd></td><td>再生 / 一時停止</td></tr>
+          <tr><td><kbd>←</kbd> <kbd>→</kbd></td><td>1コマ移動(Shiftで1秒)</td></tr>
+          <tr><td><kbd>Home</kbd> <kbd>End</kbd></td><td>先頭 / 最後へ</td></tr>
+          <tr><td>ルーラーをドラッグ</td><td>再生ヘッドを動かす(Altで吸着しない)</td></tr>
+          <tr><td>Ctrl/Cmd+ホイール</td><td>拡大・縮小(トラックパッドはピンチ)</td></tr>
+          <tr><td>ブロックを上下にドラッグ</td><td>カメラの重なり順(上ほど手前)</td></tr>
+          <tr><td>◆ をドラッグ</td><td>そのポイントの時刻を変える</td></tr>
+          <tr><td>カーブの○をドラッグ</td><td>ポイントの間の速さ(ゆっくり始まる等)。Shiftで対称</td></tr>
+        </table>
+      </div>
+      <div>
+        <h3>編集</h3>
+        <table>
+          <tr><td><kbd>Ctrl/Cmd</kbd>+<kbd>Z</kbd></td><td>取り消し</td></tr>
+          <tr><td><kbd>Ctrl/Cmd</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd></td><td>やり直し</td></tr>
+          <tr><td><kbd>B</kbd></td><td>選択中のブロックを再生ヘッドで分割</td></tr>
+          <tr><td><kbd>Ctrl/Cmd</kbd>+<kbd>D</kbd></td><td>複製</td></tr>
+          <tr><td><kbd>Delete</kbd></td><td>削除(◆を選んでいればそのポイントだけ)</td></tr>
+          <tr><td>ダブルクリック</td><td>編集パネルを開く</td></tr>
+          <tr><td>ポーズ</td><td>タイムラインの「🕺 ポーズ」タブ。3Dでプレイヤー・人形を1回クリックすると、関節にリング(回す)と矢印(動かす)が出る。手足の先の○をドラッグで腕・脚が自動で曲がる(IK)。Shift+クリックで関節をまとめて選ぶ。K で選んだ関節のキー。ブロックをダブルクリックで関節の行が全部開く</td></tr>
+          <tr><td>パーティクル</td><td>左の「💥 パーティクル」から。写真を読み込んで割れる・広がる動きにできる。3Dの矢印で位置、リングで向き</td></tr>
+          <tr><td><kbd>Esc</kbd></td><td>カメラ視点・パネルを閉じる / 選択を外す</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- プロジェクト全体の設定(左のカテゴリ一覧+右の中身。project-settings.jsが組み立てる) -->
+<div id="settingsModal">
+  <div id="settingsModalBox">
+    <div id="settingsModalHeader">
+      <h2>プロジェクト設定</h2>
+      <button id="settingsModalClose">✕</button>
+    </div>
+    <div id="settingsModalMain">
+      <nav id="settingsNav"></nav>
+      <div id="settingsModalBody"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Pyodide(ブラウザ内でPythonを動かす仕組み)は、メインスレッドを止めない
+     よう別スレッド(pyodide-worker.js、Web Worker)の中で読み込む。
+     サーバーへのアップロードは一切発生しない -->
+
+<!-- textures.zip をブラウザ内で展開するためのライブラリ(個々のpng配布の代わり) -->
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<script src="lib/mp4-muxer.min.js"></script>
+<script src="lib/webm-muxer.min.js"></script>
+
+<!-- shared.js: 面の形・タイムラインの状態など共通の定数
+     entities3d.js: カメラのデータ(キーフレーム)・人物モデル・ギズモの描画
+     freecam.js: 地形の描画・視点操作・カメラ操作・プレビュー
+     editor-core.js: 取り消し/やり直し・選択・キーボードショートカット・通知
+     timeline.js: タイムラインと編集パネル
+     content-blocks.js: テキストブロック
+     asset-library.js: 左の素材一覧(カメラ・テキストなどの追加)
+     project-settings.js: プロジェクト設定
+     ui.js: アップロード・Pyodide呼び出し・再生 -->
+<script src="icons.js?v=55"></script>
+<script src="shared.js?v=55"></script>
+<script src="entities3d.js?v=55"></script>
+<script src="freecam.js?v=55"></script>
+<script src="editor-core.js?v=55"></script>
+<script src="timeline.js?v=55"></script>
+<script src="content-blocks.js?v=55"></script>
+<script src="particles.js?v=55"></script>
+<script src="poses.js?v=55"></script>
+<script src="autoanim.js?v=55"></script>
+<script src="blockfx.js?v=55"></script>
+<script src="constraints.js?v=55"></script>
+<script src="motion-path.js?v=55"></script>
+<script src="panel-ui.js?v=55"></script>
+<script src="build.js?v=55"></script>
+<script src="official-models.js?v=55"></script>
+<script src="official-blocks.js?v=55"></script>
+<script src="mesh-entities.js?v=55"></script>
+<script src="blocks.js?v=55"></script>
+<script src="audio.js?v=55"></script>
+<script src="transitions.js?v=55"></script>
+<script src="pinp.js?v=55"></script>
+<script src="export.js?v=55"></script>
+<script src="light-grid.js?v=55"></script>
+<script src="shader-mod.js?v=55"></script>
+<script src="project.js?v=55"></script>
+<script src="asset-library.js?v=55"></script>
+<script src="script-runner.js?v=55"></script>
+<script src="script-library.js?v=55"></script>
+<script src="anim-scripts.js?v=55"></script>
+<script src="project-settings.js?v=55"></script>
+<script src="ui.js?v=55"></script>
+<script src="ui-shell.js?v=55"></script>
+</body>
+</html>

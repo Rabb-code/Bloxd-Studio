@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>公式のブロック表を作る</title>
+<style>
+  :root { --bg:#f6f5f1; --fg:#1d1d1b; --muted:#6b6a64; --card:#fff; --line:#dedbd2; --accent:#2f6f4f; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#1a1a18; --fg:#ecebe6; --muted:#a3a29b; --card:#24241f; --line:#3a3a33; --accent:#7cc39a; } }
+  body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.7 system-ui, sans-serif; }
+  main { max-width:720px; margin:0 auto; padding:32px 16px; }
+  h1 { font-size:22px; margin:0 0 8px; }
+  p { margin:6px 0; color:var(--muted); }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:20px; margin-top:20px; }
+  label.btn, button { display:inline-block; background:var(--accent); color:#fff; border:0; border-radius:8px; padding:10px 18px; font-size:16px; cursor:pointer; }
+  input[type=file] { display:none; }
+  pre { white-space:pre-wrap; font:13px/1.6 ui-monospace, monospace; background:var(--bg); border-radius:8px; padding:12px; margin:12px 0 0; min-height:3em; }
+</style>
+</head>
+<body>
+<main>
+  <h1>公式のブロック表を作る</h1>
+  <p>bloxd_models.zip(bloxd_models_dump.js で作った物)の中の公式の JS から、ブロックの番号と形・着せかえ(NPC)の表 <b>official_blockmeta.json</b> を作ります。</p>
+  <p>このページの中だけで動きます。どこにも送りません。Bloxd のページを開く必要もありません。</p>
+  <div class="card">
+    <label class="btn">bloxd_models.zip を選ぶ<input type="file" id="zip" accept=".zip"></label>
+    <pre id="log">まだ何もしていません</pre>
+  </div>
+  <div class="card">
+    <p>できた official_blockmeta.json を、エディタのフォルダに置いて、次を実行します:</p>
+    <pre>python3 tools/update_from_official.py bloxd_models.zip bloxd_models_plain.zip official_blockmeta.json</pre>
+  </div>
+</main>
+<script>
+const logEl = document.getElementById('log');
+const log = (s) => { logEl.textContent += '\n' + s; };
+
+// zip を読む(圧縮無し・deflate の両方。ブラウザの DecompressionStream を使う)
+async function readZip(buf) {
+  const u8 = new Uint8Array(buf), dv = new DataView(buf);
+  let eocd = -1;
+  for (let i = u8.length - 22; i >= Math.max(0, u8.length - 70000); i--) if (dv.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+  if (eocd < 0) throw new Error('zip ではないようです');
+  let n = dv.getUint16(eocd + 10, true), p = dv.getUint32(eocd + 16, true);
+  const out = {};
+  for (let k = 0; k < n; k++) {
+    if (dv.getUint32(p, true) !== 0x02014b50) throw new Error('zip の目次が読めません');
+    const method = dv.getUint16(p + 10, true), csize = dv.getUint32(p + 20, true);
+    const nl = dv.getUint16(p + 28, true), xl = dv.getUint16(p + 30, true), cl = dv.getUint16(p + 32, true);
+    const lho = dv.getUint32(p + 42, true);
+    const name = new TextDecoder().decode(u8.subarray(p + 46, p + 46 + nl));
+    p += 46 + nl + xl + cl;
+    if (!/^js\/.*\.js$/.test(name)) continue;
+    const start = lho + 30 + dv.getUint16(lho + 26, true) + dv.getUint16(lho + 28, true);
+    const data = u8.subarray(start, start + csize);
+    let bytes;
+    if (method === 0) bytes = data;
+    else if (method === 8) bytes = new Uint8Array(await new Response(new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer());
+    else throw new Error('この zip の圧縮の方式は読めません: ' + method);
+    out[name.slice(3)] = new TextDecoder().decode(bytes);
+  }
+  return out;
+}
+
+document.getElementById('zip').onchange = async (ev) => {
+  const f = ev.target.files[0]; if (!f) return;
+  logEl.textContent = f.name + ' を読んでいます…';
+  try {
+    const files = await readZip(await f.arrayBuffer());
+    const names = Object.keys(files);
+    if (!names.some(n => n.includes('.main.'))) throw new Error('zip の中に js/…main….js がありません');
+    log(`公式の JS ${names.length} 個を読みました。表を作っています(10〜30秒)…`);
+    // 公式のコードは Worker の中で動かす(このページの物には触らせない)
+    const base = location.href.replace(/[^/]*$/, '');
+    const wsrc = `importScripts(${JSON.stringify(base + 'acorn.js')}, ${JSON.stringify(base + 'blockmeta_core.js')});
+      onmessage = (e) => { try {
+        const files = e.data, C = self.BlockMetaCore;
+        const map = C.makeModuleMap(files, self.acorn);
+        const j = C.runBlockMetadata(files, map);
+        const table = C.compactBlockMeta(j);
+        try { table.cosmetics = C.compactCosmetics(C.runCosmetics(files, map, C.runBlockMetadata.lastReq)); } catch (err) { table.cosmetics = {}; }
+        postMessage({ ok: true, table });
+      } catch (err) { postMessage({ ok: false, msg: String(err && err.stack || err) }); } };`;
+    const w = new Worker(URL.createObjectURL(new Blob([wsrc], { type: 'text/javascript' })));
+    const res = await new Promise((ok) => { w.onmessage = (e) => ok(e.data); w.onerror = (e) => ok({ ok: false, msg: e.message }); w.postMessage(files); });
+    w.terminate();
+    if (!res.ok) throw new Error(res.msg);
+    const ids = Object.keys(res.table.ids).length;
+    const text = JSON.stringify(res.table);
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
+    a.download = 'official_blockmeta.json'; document.body.appendChild(a); a.click(); a.remove();
+    log(`できました: ブロックの番号 ${ids} 個・着せかえ ${Object.keys(res.table.cosmetics || {}).length} 個(${(text.length / 1e6).toFixed(1)} MB)。official_blockmeta.json を保存しました。`);
+  } catch (e) {
+    log('うまくいきませんでした: ' + e.message);
+  }
+};
+</script>
+</body>
+</html>

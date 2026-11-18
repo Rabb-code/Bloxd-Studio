@@ -1,0 +1,8 @@
+# 公式の音の一覧
+# このフォルダ(sounds/)に音声ファイル(mp3 / wav / ogg)を入れて、ここに1行ずつ書きます。
+#   file: ファイル名 / name: 一覧に出す名前 / tags: タグ(「・」で区切る) / credit: 作った人・サイトの名前(一覧とパネルに出ます)
+# 例:
+#   se_maoudamashii_battle01.mp3,パンチ,効果音・衝撃,魔王魂
+#   bgm_maoudamashii_orchestra01.mp3,壮大なオーケストラ,BGM・壮大,魔王魂
+# 書いたら、ページを読み直す(Cmd+Shift+R)と素材一覧の「🎵 音楽」に並びます。
+file,name,tags,credit
