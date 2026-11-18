@@ -25,8 +25,8 @@
     --font-display: 'Bricolage Grotesque', var(--font-ui);
     --radius: 10px;
 
-    --tl-header-w: 136px; /* timeline.js の TL_HEADER_W と揃える */
-    --tl-row-h: 34px;     /* timeline.js の TL_ROW_H と揃える */
+    --tl-header-w: 136px; 
+    --tl-row-h: 34px;   
     --glass: rgba(11,13,18,0.78);
   }
   * { box-sizing: border-box; }
@@ -66,13 +66,9 @@
   #uploadHero .hero-art { flex-shrink:0; width:200px; }
   #uploadHero .hero-art svg { width:100%; height:auto; }
 
-  /* ============================================================
-     エディタ画面: 3Dビュー
-     ============================================================ */
   #editor { position:fixed; inset:0; display:none; flex-direction:column; }
   #editor.active { display:flex; }
-  /* 編集パネルを開いている間は、エディタ画面をパネルの幅だけ縮める
-     (右上のボタンや右下の小窓がパネルの下に隠れないように) */
+
   #editor.panelOpen { right: min(340px, 88vw); }
 
   #freecamArea { position:relative; flex:1; min-height:0; background:#08090c; overflow:hidden; }
@@ -89,15 +85,12 @@
                 pointer-events:none; z-index:5; white-space:pre-line; }
   #loadStatus:empty { display:none; }
 
-  /* 右上の操作群(flexで並べるだけ。ボタンが増えても座標の調整は要らない) */
   #topRightControls { position:absolute; top:12px; right:12px; z-index:6; display:flex; align-items:center; gap:8px; }
   #fovBox { display:flex; align-items:center; gap:8px; padding:6px 12px; font-size:12px; color: var(--muted); }
   #fovValue { min-width:30px; display:inline-block; text-align:right; color: var(--ink); }
   #fovSlider { width:96px; accent-color: var(--gold); }
 
-  /* ============================================================
-     左: 素材一覧(asset-library.js が中身を作る)
-     ============================================================ */
+
   #editorMain { flex:1; min-height:0; display:flex; }
   #assetPanel { flex-shrink:0; display:flex; background: var(--surface); border-right:1px solid var(--border); }
   #assetRail { width:62px; flex-shrink:0; display:flex; flex-direction:column; gap:2px; padding:8px 5px;
@@ -183,7 +176,6 @@
   .pfImageTile.add { border-style:dashed; }
   .assetThumb.script { background: linear-gradient(160deg, #123a2c, #1b1f27); }
 
-  /* スクリプトの右パネル */
   .scriptDesc { color: var(--ink); }
   .scriptParams { display:flex; flex-direction:column; gap:10px; }
   .scriptCheck { display:flex; align-items:center; gap:8px; font-size:12.5px; cursor:pointer; }
@@ -202,7 +194,6 @@
   .scriptLog { margin:0; max-height:180px; overflow:auto; font-size:11.5px; line-height:1.5; padding:8px 10px;
                border-radius:7px; background: var(--bg); border:1px solid var(--border); color: var(--muted); white-space:pre-wrap; }
 
-  /* スクリプトのコードエディタ(全画面) */
   #scriptEditor { position:fixed; inset:0; z-index:30; display:none; align-items:center; justify-content:center;
                   background:rgba(5,6,9,0.66); backdrop-filter: blur(2px); }
   #scriptEditor.open { display:flex; }
@@ -242,18 +233,13 @@
   #scriptEditorStatus.error { color:#F29A9A; }
   @media (max-width: 1000px) { #scriptEditorDocs { width:300px; } }
 
-  /* 素材をドラッグしている間は、落とせる場所を縁取りで示す */
   body.assetDragging #timelineScroll, body.assetDragging #freecamArea { outline:2px dashed rgba(106,161,255,0.6); outline-offset:-3px; }
 
-  /* 下: 今できる操作のヒント(状況に応じて変わる) */
   #contextHint { position:absolute; bottom:14px; left:50%; transform:translateX(-50%); z-index:5;
                  max-width:calc(100% - 520px); padding:5px 12px; font-size:12px; line-height:1.5;
                  color: var(--ink); text-align:center; pointer-events:none;
                  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 
-  /* 右下の小窓(PinP)。実際の描画はWebGL側(freecam.js)が、この位置に合わせて
-     ビューポートを切っている。このdivは縁取りとクリック受け皿だけ。
-     位置・サイズは freecam.js の PINP_W/PINP_H/PINP_MARGIN と揃えてある。 */
   #pinpInset { position:absolute; bottom:14px; right:14px; width:220px; height:140px; z-index:4;
                border:2px solid var(--border); border-radius:6px; cursor:pointer;
                box-shadow:0 6px 20px rgba(0,0,0,0.45); pointer-events:none; display:none; }
@@ -264,7 +250,7 @@
                       transition: opacity .15s ease; }
   #pinpInset:hover::after { opacity:1; }
 
-  /* プレビューに重ねる、テキストのドラッグ配置レイヤー(content-blocks.jsが位置を合わせる) */
+
   #pinpOutline { position:absolute; display:none; z-index:6; pointer-events:none; border:2px solid var(--gold); border-radius:3px; box-shadow:0 0 0 1px #0008; }
   .pinpCorner { position:absolute; width:10px; height:10px; background:var(--gold); border:1.5px solid #000a; border-radius:2px; }
   .pinpCorner.tl { left:-6px; top:-6px; } .pinpCorner.tr { right:-6px; top:-6px; }
@@ -277,28 +263,26 @@
   .textOverlayItem:hover { outline:1px dashed rgba(255,255,255,0.5); }
   .textOverlayItem.selected { outline:1.5px dashed var(--amethyst); }
 
-  /* カメラ視点モード: 書き出す枠+三分割線 */
+
   #pilotFrame { position:absolute; pointer-events:none; display:none; z-index:4;
                 border:2px solid var(--gold); box-shadow:0 0 0 9999px rgba(0,0,0,0.28);
                 background-image:
                   linear-gradient(to right, transparent calc(33.33% - 0.5px), rgba(255,255,255,0.22) calc(33.33% - 0.5px), rgba(255,255,255,0.22) calc(33.33% + 0.5px), transparent calc(33.33% + 0.5px), transparent calc(66.66% - 0.5px), rgba(255,255,255,0.22) calc(66.66% - 0.5px), rgba(255,255,255,0.22) calc(66.66% + 0.5px), transparent calc(66.66% + 0.5px)),
                   linear-gradient(to bottom, transparent calc(33.33% - 0.5px), rgba(255,255,255,0.22) calc(33.33% - 0.5px), rgba(255,255,255,0.22) calc(33.33% + 0.5px), transparent calc(33.33% + 0.5px), transparent calc(66.66% - 0.5px), rgba(255,255,255,0.22) calc(66.66% - 0.5px), rgba(255,255,255,0.22) calc(66.66% + 0.5px), transparent calc(66.66% + 0.5px)); }
   #pilotFrame.show { display:block; }
-  /* 上部中央は通知(トースト)が出る場所なので、ラベルは枠の左下に置く */
+
   #pilotLabel { position:absolute; bottom:10px; left:10px; padding:4px 12px;
                 border-radius:999px; background: var(--gold); color: var(--gold-ink); font-size:12px; font-weight:700;
                 white-space:nowrap; }
 
-  /* 画面上部の通知 */
+
   #toast { position:absolute; top:58px; left:50%; transform:translate(-50%, -8px); z-index:9; padding:8px 16px;
            border-radius:999px; background: var(--surface-2); border:1px solid var(--border); font-size:13px;
            color: var(--ink); opacity:0; pointer-events:none; transition: opacity .18s ease, transform .18s ease;
            box-shadow:0 8px 24px rgba(0,0,0,0.4); white-space:nowrap; }
   #toast.show { opacity:1; transform:translate(-50%, 0); }
 
-  /* ============================================================
-     タイムライン
-     ============================================================ */
+
   #timelinePanel { position:relative; flex-shrink:0; height:250px; background: var(--surface);
                    border-top:1px solid var(--border); display:flex; flex-direction:column; user-select:none; }
   #timelineResizer { position:absolute; top:-4px; left:0; right:0; height:8px; cursor:ns-resize; z-index:8; }
@@ -318,7 +302,7 @@
               white-space:nowrap; min-width:96px; text-align:center; }
   #entitySelect { background: var(--surface-2); color: var(--ink); border:1px solid var(--border); border-radius:7px;
                   padding:5px 8px; font-size:12px; max-width:170px; height:30px; }
-  #frameInfo { display:none; } /* 開発用の情報(tick・pose など)。使う人には出さない */
+  #frameInfo { display:none; }
 
   #timelineScroll { position:relative; flex:1; min-height:0; overflow:auto; }
   #timelineContent { position:relative; min-height:100%; }
@@ -331,7 +315,7 @@
   .tlHeaderSub { font-size:10px; color: var(--muted); }
   .tlLane { position:relative; flex-shrink:0; height:100%; }
 
-  /* ルーラー(上に張り付く) */
+
   #timelineRulerRow { position:sticky; top:0; z-index:7; height:24px; background: var(--surface); }
   #timelineRulerRow .tlHeader { z-index:8; color: var(--muted); font-size:10.5px; }
   #timelineRulerLane { cursor:text; }
@@ -434,13 +418,13 @@
   .tlHandle { position:absolute; top:0; bottom:0; width:7px; cursor:ew-resize; z-index:3; }
   .tlHandle.left { left:0; } .tlHandle.right { right:0; }
   .tlBlock:hover .tlHandle, .tlBlock.selected .tlHandle { background: rgba(255,255,255,0.14); }
-  /* ◆キー(動くショットの各ポイント) */
+
   .tlKey { position:absolute; bottom:5px; width:10px; height:10px; margin-left:-5px; transform:rotate(45deg);
            background: var(--ink); border:1.5px solid var(--gold-ink); z-index:4; cursor:ew-resize; }
   .tlKey:hover { background:#fff; box-shadow:0 0 0 2px rgba(255,255,255,0.35); }
   .tlKey.active { background: var(--gold); border-color:#fff; }
 
-  /* 編集パネルを開いているカメラブロック: 縦に広げて、速さのカーブのグラフを出す */
+
   .tlRow.expanded { background: rgba(106,161,255,0.04); }
   .tlBlock.cam.expanded { background: rgba(106,161,255,0.13); }
   .tlBlock.cam.expanded.selected { background: rgba(106,161,255,0.2); }
@@ -470,9 +454,7 @@
   #timelineSnapLine { position:absolute; top:0; bottom:0; width:1px; background:#fff; opacity:.7; z-index:5;
                       pointer-events:none; display:none; }
 
-  /* ============================================================
-     編集パネル(右側。ブロックのダブルクリックで開く)
-     ============================================================ */
+
   #editPanel { position:fixed; top:0; right:0; bottom:0; width:340px; max-width:88vw; z-index:15;
                background: var(--surface); border-left:1px solid var(--border); box-shadow:-12px 0 32px rgba(0,0,0,0.4);
                transform:translateX(100%); transition: transform .18s ease; display:flex; flex-direction:column; }
@@ -486,7 +468,7 @@
   #editPanelHelp { background:none; border:1px solid var(--border); color: var(--muted); font-size:11px; border-radius:999px; padding:3px 9px; cursor:pointer; font-family:inherit; }
   #editPanelHelp:hover { color: var(--ink); }
   body.showHints #editPanelHelp { color: var(--ink); border-color: var(--gold); }
-  /* くわしい説明は「？ 説明」を押した時だけ出す */
+
   body:not(.showHints) #editPanel .panelHint, body:not(.showHints) #assetList .assetHint:not(.assetPublicNote) { display:none; }
   #editPanelBody { padding:16px 18px 24px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:14px; }
   .fieldRow { display:flex; align-items:center; gap:10px; }
@@ -528,9 +510,6 @@
   .settingsRadioPill.small { padding:4px 9px; font-size:12px; }
   .settingsRadioPill.active { background: var(--gold); color: var(--gold-ink); border-color: var(--gold); font-weight:700; }
 
-  /* ============================================================
-     操作ヘルプ
-     ============================================================ */
   #helpOverlay { position:fixed; inset:0; z-index:25; display:none; align-items:center; justify-content:center;
                  background:rgba(5,6,9,0.6); backdrop-filter: blur(2px); }
   #helpOverlay.open { display:flex; }
@@ -547,9 +526,7 @@
   .helpCols td:first-child { white-space:nowrap; padding-right:12px; color: var(--muted); }
   .helpFlow { margin:0 0 16px; padding:10px 14px; border-radius:8px; background: var(--surface-2); font-size:12.5px; line-height:1.8; }
 
-  /* ============================================================
-     プロジェクト設定(セクション制: 左ナビ+右コンテンツ)
-     ============================================================ */
+
   #settingsModal { position:fixed; inset:0; z-index:20; display:none; align-items:center; justify-content:center;
                     background:rgba(5,6,9,0.6); backdrop-filter: blur(2px); }
   #settingsModal.open { display:flex; }
@@ -642,7 +619,7 @@
                            overflow:hidden; flex-shrink:0; }
   #playerTexturePreview img { width:100%; height:100%; object-fit:cover; image-rendering:pixelated; }
 
-  /* 画面の幅が狭い時は、素材一覧のカードを1列にして幅を詰める */
+
   @media (max-width: 1250px) {
     #assetList { width:170px; }
     .assetGrid { grid-template-columns: 1fr; }
@@ -652,9 +629,6 @@
     #contextHint { max-width:calc(100% - 340px); }
   }
 
-  /* ============================================================
-     ステップ44: 新しい見た目(シンプル・すっきり)。上の値を上書きする
-     ============================================================ */
   :root {
     --bg:#0f1012; --surface:#16171a; --surface-2:#24262b; --ink:#e9e9ec; --muted:#a0a3ab; --border:#2a2c31; --line-soft:#1d1f23;
     --gold:#6aa1ff; --gold-ink:#08152c; --accent:#2f6fe4; --accent-soft:rgba(106,161,255,0.16);
@@ -667,7 +641,7 @@
   .btn-primary { background: var(--accent); color:#fff; }
   .uiIco { display:block; flex-shrink:0; }
 
-  /* 上のバー */
+
   #appBar { height:48px; flex-shrink:0; display:flex; align-items:center; gap:16px; padding:0 12px 0 16px;
             border-bottom:1px solid var(--border); background: var(--surface); position:relative; z-index:30; }
   .abSide { flex:1 1 0; min-width:0; display:flex; align-items:center; gap:10px; }
@@ -698,13 +672,11 @@
   #appMenu button .k { margin-left:auto; color: var(--muted); font-family: var(--font-mono); font-size:11px; }
   #appMenu hr { border:none; border-top:1px solid var(--border); margin:6px 4px; }
 
-  /* 3D の上: 左上は今の見え方だけ。開発用の数字は出さない */
   #viewHud { top:16px; left:16px; height:30px; padding:0 12px; display:flex; align-items:center; gap:8px; border-radius:15px;
              border:none; background: var(--glass); color: var(--ink); font-size:12px; }
   #viewHud .uiIco { opacity:.85; }
   #loadStatus { top:54px; left:16px; border:none; border-radius:8px; }
   #loadStatus.done { display:none; }
-  /* 下のドック(人のところへ・画角) */
   #topRightControls { top:auto; right:auto; left:50%; bottom:16px; transform:translateX(-50%); gap:4px; padding:4px;
                       border-radius:12px; background: rgba(15,16,18,0.82); border:1px solid rgba(255,255,255,0.1); backdrop-filter: blur(4px); }
   #topRightControls .glass { background:transparent; border:none; backdrop-filter:none; }
@@ -715,12 +687,10 @@
   #topRightControls #entitySelect { height:32px; max-width:150px; background:transparent; border:1px solid rgba(255,255,255,0.14); color:#e9e9ec; }
   #fovBox { height:36px; padding:0 10px; color:#a0a3ab; white-space:nowrap; }
   #fovSlider { width:84px; accent-color: var(--gold); }
-  /* ヒントは上のまん中、通知はその下 */
   #contextHint { top:16px; bottom:auto; border:none; border-radius:15px; padding:6px 14px; background: var(--glass); max-width:calc(100% - 560px); }
   #toast { top:60px; }
   #pinpInset { border-radius:10px; border-color: rgba(255,255,255,0.18); }
 
-  /* 再生のバー */
   #timelineToolbar { height:48px; padding:0 12px; gap:8px; background: var(--surface); overflow:visible; }
   .tbBtn { height:32px; min-width:32px; padding:0 8px; border:none; border-radius:8px; background:transparent; color: var(--ink);
            font-size:13px; gap:6px; }
@@ -734,11 +704,9 @@
   #timecode .tcTotal { color: var(--muted); }
   #zoomOutBtn, #zoomFitBtn, #zoomInBtn { color: var(--muted); }
 
-  /* 右のパネルは上のバーの下から */
   #editPanel { top:48px; box-shadow:none; }
   #editPanelHeader h2 { font-size:15px; }
 
-  /* ステップ45: タイムライン(1本の一覧・空の行は出さない・落ち着いた色) */
   #timelineTabs { display:none !important; }
   #timelinePanel.tabPose #timelineCameraRows { display:block; }
   #timelinePanel.tabPose #timelineTextRow, #timelinePanel.tabPose #timelineParticleRow, #timelinePanel.tabPose #timelineAudioRow,
@@ -805,8 +773,6 @@
   #timelinePlayhead::before { background: var(--gold) !important; border-color: var(--gold) !important; }
   .aaPanel .aaBox { margin-left:0; flex-wrap:wrap; gap:10px; }
   .aaPanel .aaRange input { width:110px; }
-
-  /* ステップ46: 右のパネル */
   #editPanelHeader { padding:14px 12px 12px 16px; }
   #editPanelBody { padding:12px 16px 24px; gap:12px; }
   .pSec { display:flex; flex-direction:column; border-top:1px solid var(--border); margin:0 -16px; padding:0 16px; }
@@ -846,7 +812,6 @@
   .curvePill { flex-direction:column; justify-content:center; gap:4px; height:56px; padding:0 4px; font-size:11px; border-radius:8px; flex:1 1 0; }
   .settingsRadioGroup:has(> .curvePill) { display:grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap:6px; }
 
-  /* ステップ47: 左の素材の一覧 = アイコンを押すと出る引き出し(3Dの上に重なる) */
   #assetPanel { position:relative; z-index:25; }
   #assetRail { width:64px; padding:10px 6px; gap:4px; border-right:none; }
   .assetRailBtn { width:52px; min-height:52px; padding:6px 0 5px; gap:4px; border-radius:10px; justify-content:center; }
@@ -879,9 +844,7 @@
   .assetTools { border-top:1px solid var(--border); padding-top:12px; }
   .assetTools .btn { justify-content:center; border-style:dashed; }
 
-  /* ステップ48: 小窓は右上 */
   #pinpInset { top:16px; bottom:auto; right:16px; width:256px; height:144px; }
-  /* ステップ48: 人を動かす道具の帯(3Dの上のまん中) */
   #poseToolbar { position:absolute; top:16px; left:50%; transform:translateX(-50%); z-index:7; display:none; align-items:center; gap:4px;
                  padding:4px; border-radius:12px; background: rgba(15,16,18,0.84); border:1px solid rgba(255,255,255,0.1); backdrop-filter: blur(4px); }
   #poseToolbar.show { display:flex; }
@@ -902,7 +865,6 @@
   #editPanelSub { font-size:12px; color: var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   #editPanelSub:empty { display:none; }
 
-  /* ステップ48: 明るい色(メニューの「明るい色にする」。3D の上の帯・ドックは暗いまま) */
   body.light { --bg:#eceef1; --surface:#f7f8fa; --surface-2:#ffffff; --ink:#17181b; --muted:#5b5f68; --border:#d9dce1; --line-soft:#e3e5e9;
                --gold:#2f6fe4; --gold-ink:#ffffff; --accent-soft:rgba(47,111,228,0.12); --emerald:#1f9a72; --emerald-ink:#ffffff;
                --amethyst:#7b5cd6; --amethyst-ink:#ffffff; color-scheme: light; }
@@ -937,7 +899,6 @@
   body.light #viewHud, body.light #contextHint, body.light #fovValue, body.light #loadStatus, body.light #pilotLabel { color:#e9e9ec; }
   body.light #topRightControls #entitySelect { color-scheme: dark; }
 
-  /* ステップ49: 建築 */
   .tlDot.build { background:#e0874a; }
   .tlBlock.build { background:#3a2a1c; border-color:#6a4a2e; }
   .tlBlock.build.selected { background:#4a3524; }
@@ -1014,7 +975,6 @@
     </div>
   </header>
   <div id="editorMain">
-  <!-- 左: 素材一覧(カテゴリ+素材カード。asset-library.js が中身を作る) -->
   <div id="assetPanel">
     <div id="assetRail"></div>
     <div id="assetList"></div>
@@ -1116,7 +1076,6 @@
   </div>
 </div>
 
-<!-- 右側スライドパネル(ブロックのダブルクリックで開く) -->
 <div id="editPanel">
   <div id="editPanelHeader">
     <div class="editPanelTitles"><h2 id="editPanelTitle">ブロックを編集</h2><div id="editPanelSub"></div></div>
@@ -1128,7 +1087,6 @@
   <div id="editPanelBody"></div>
 </div>
 
-<!-- 操作ヘルプ(? キー / 右上の「？ 操作」) -->
 <div id="helpOverlay">
   <div id="helpBox">
     <div id="helpHead"><h2>操作ヘルプ</h2><button id="helpClose">✕</button></div>
@@ -1196,7 +1154,6 @@
   </div>
 </div>
 
-<!-- プロジェクト全体の設定(左のカテゴリ一覧+右の中身。project-settings.jsが組み立てる) -->
 <div id="settingsModal">
   <div id="settingsModalBox">
     <div id="settingsModalHeader">
@@ -1210,24 +1167,10 @@
   </div>
 </div>
 
-<!-- Pyodide(ブラウザ内でPythonを動かす仕組み)は、メインスレッドを止めない
-     よう別スレッド(pyodide-worker.js、Web Worker)の中で読み込む。
-     サーバーへのアップロードは一切発生しない -->
 
-<!-- textures.zip をブラウザ内で展開するためのライブラリ(個々のpng配布の代わり) -->
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <script src="lib/mp4-muxer.min.js"></script>
 <script src="lib/webm-muxer.min.js"></script>
-
-<!-- shared.js: 面の形・タイムラインの状態など共通の定数
-     entities3d.js: カメラのデータ(キーフレーム)・人物モデル・ギズモの描画
-     freecam.js: 地形の描画・視点操作・カメラ操作・プレビュー
-     editor-core.js: 取り消し/やり直し・選択・キーボードショートカット・通知
-     timeline.js: タイムラインと編集パネル
-     content-blocks.js: テキストブロック
-     asset-library.js: 左の素材一覧(カメラ・テキストなどの追加)
-     project-settings.js: プロジェクト設定
-     ui.js: アップロード・Pyodide呼び出し・再生 -->
 <script src="icons.js?v=55"></script>
 <script src="shared.js?v=55"></script>
 <script src="entities3d.js?v=55"></script>
